@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Log in · Line Check</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/line-check.css">
+  <script defer src="/assets/js/pages/login.js"></script>
+</head>
+<body>
+<div class="wrap auth">
+  <header class="site-nav">
+    <a class="logo" href="/">Line Check</a>
+    <span class="sub">New here? <a href="/signup.html">Create your profile</a></span>
+  </header>
+
+  <form id="login" class="card auth-card" novalidate>
+    <h1>Log in</h1>
+    <div id="form-error" class="banner warn" role="alert" hidden></div>
+    <div class="form">
+      <label class="wide">Email <input name="email" type="email" autocomplete="email" required></label>
+      <label class="wide">Password <input name="password" type="password" autocomplete="current-password" required></label>
+    </div>
+    <div class="row"><span class="spacer"></span><button type="submit" class="btn primary">Log in</button></div>
+  </form>
+</div>
+</body>
+</html>

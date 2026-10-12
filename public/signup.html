@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Create your profile · Line Check</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/line-check.css">
+  <script defer src="/assets/js/pages/signup.js"></script>
+</head>
+<body>
+<div class="wrap auth">
+  <header class="site-nav">
+    <a class="logo" href="/">Line Check</a>
+    <span class="sub">Have an account? <a href="/login.html">Log in</a></span>
+  </header>
+
+  <form id="signup" class="card auth-card" novalidate autocomplete="on">
+    <div>
+      <span class="eyebrow" id="step-label">Step 1 of 3</span>
+      <h1 id="step-title">Where is your restaurant?</h1>
+    </div>
+    <ol class="progress" aria-hidden="true"><li class="on"></li><li></li><li></li></ol>
+    <div id="form-error" class="banner warn" role="alert" hidden></div>
+
+    <!-- Step 1: state -->
+    <fieldset class="step" data-step="1" data-title="Where is your restaurant?">
+      <legend class="sub">Your state decides which food code, limits and deadlines Line Check uses. You can't change it later without a new profile.</legend>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="state" value="CA" required>
+          <span class="choice-body"><b>California</b><span class="sub">California Retail Food Code. County health permits, Food Protection Manager and food handler cards, Cal/OSHA plans.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="state" value="TX" required>
+          <span class="choice-body"><b>Texas</b><span class="sub">Texas Food Establishment Rules. City or county permits, Certified Food Manager, TABC and Comptroller deadlines.</span></span>
+        </label>
+      </div>
+      <p class="sub">Only California and Texas are supported right now.</p>
+    </fieldset>
+
+    <!-- Step 2: about you -->
+    <fieldset class="step form" data-step="2" data-title="About you" hidden>
+      <label class="wide">Full name <input name="userName" type="text" maxlength="80" autocomplete="name" required></label>
+      <label>Your role
+        <select name="title">
+          <option>Owner</option>
+          <option>General manager</option>
+          <option>Kitchen manager</option>
+          <option>Other</option>
+        </select>
+      </label>
+      <label>Phone (optional) <input name="userPhone" type="tel" maxlength="30" autocomplete="tel"></label>
+      <label class="wide">Email <input name="email" type="email" maxlength="254" autocomplete="email" required></label>
+      <label>Password <input name="password" type="password" minlength="10" maxlength="200" autocomplete="new-password" required></label>
+      <label>Confirm password <input name="confirm" type="password" minlength="10" maxlength="200" autocomplete="new-password" required></label>
+      <p class="wide sub">At least 10 characters.</p>
+    </fieldset>
+
+    <!-- Step 3: restaurant -->
+    <fieldset class="step form" data-step="3" data-title="Your restaurant" hidden>
+      <label class="wide">Restaurant name <input name="restaurantName" type="text" maxlength="100" autocomplete="organization" required></label>
+      <label class="wide">Street address <input name="address" type="text" maxlength="120" autocomplete="street-address"></label>
+      <label>City <input name="city" type="text" maxlength="60" autocomplete="address-level2" required></label>
+      <label>County <input name="county" type="text" maxlength="60"></label>
+      <label>ZIP code <input name="zip" type="text" maxlength="10" inputmode="numeric" autocomplete="postal-code"></label>
+      <label>Restaurant phone <input name="restaurantPhone" type="tel" maxlength="30"></label>
+      <label class="wide">Health permit number (optional) <input name="permitNumber" type="text" maxlength="60"></label>
+      <label class="wide check inline"><input name="servesAlcohol" type="checkbox"><span>We serve or sell alcohol</span></label>
+    </fieldset>
+
+    <div class="row">
+      <button type="button" class="btn" id="back" hidden>Back</button>
+      <span class="spacer"></span>
+      <button type="submit" class="btn primary" id="next">Continue</button>
+    </div>
+  </form>
+</div>
+</body>
+</html>
