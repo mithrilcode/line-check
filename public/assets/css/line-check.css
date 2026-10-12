@@ -111,6 +111,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .row.tight { gap: 6px; }
 .row.nowrap { flex-wrap: nowrap; align-items: flex-start; }
+.row.nowrap > input { flex: 1; min-width: 0; }
 .spacer { flex: 1; }
 .min0 { min-width: 0; }
 .full { grid-column: 1 / -1; }
@@ -239,7 +240,7 @@ input:not([type]), select, textarea {
   font-weight: 400;
 }
 input[type="file"] { font-size: 0.85rem; }
-input.auto { width: auto; }
+input.auto, select.auto { width: auto; max-width: 100%; }
 input.search { max-width: 18rem; }
 textarea { min-height: 4.5em; resize: vertical; }
 

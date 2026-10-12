@@ -28,6 +28,8 @@
     </div>
     <div class="account">
       <span id="modepill" class="modepill">All changes saved</span>
+      <label class="sub" for="switch-restaurant" hidden id="switch-label">Restaurant</label>
+      <select id="switch-restaurant" class="auto" hidden></select>
       <span class="sub" id="user-name"></span>
       <button class="btn small" data-act="logout">Log out</button>
     </div>
@@ -46,6 +48,7 @@
     <button role="tab" data-tab="inspection" aria-selected="false">Inspection prep</button>
     <button role="tab" data-tab="staff" aria-selected="false" hidden>Employees</button>
     <button role="tab" data-tab="reference" aria-selected="false">Quick reference</button>
+    <button role="tab" data-tab="settings" aria-selected="false">Settings</button>
   </nav>
 
   <!-- Today's log -->
@@ -150,6 +153,84 @@
 
   <!-- Quick reference (loaded from /partials/reference-<state>.html) -->
   <section class="panel" id="p-reference" role="tabpanel" hidden></section>
+
+  <!-- Settings -->
+  <section class="panel" id="p-settings" role="tabpanel" hidden>
+    <div class="grid2">
+      <div class="stack">
+        <form class="card" id="f-account" autocomplete="off">
+          <div><h2>Your account</h2><p class="sub" id="account-email"></p></div>
+          <div class="form">
+            <label class="wide">Full name <input id="a-name" type="text" maxlength="80" required></label>
+            <label>Your role <input id="a-title" type="text" maxlength="60"></label>
+            <label>Phone <input id="a-phone" type="tel" maxlength="30"></label>
+          </div>
+          <div class="row"><button class="btn primary" type="submit">Save</button></div>
+        </form>
+
+        <form class="card" id="f-password" autocomplete="off">
+          <div><h2>Change password</h2><p class="sub">You'll stay signed in here and be signed out everywhere else.</p></div>
+          <div class="form">
+            <label class="wide">Current password <input id="pw-current" type="password" autocomplete="current-password" required></label>
+            <label>New password <input id="pw-next" type="password" minlength="10" maxlength="200" autocomplete="new-password" required></label>
+            <label>Confirm new password <input id="pw-confirm" type="password" minlength="10" maxlength="200" autocomplete="new-password" required></label>
+          </div>
+          <div class="row"><button class="btn primary" type="submit">Change password</button></div>
+        </form>
+      </div>
+
+      <div class="stack" data-manager-only>
+        <div class="card">
+          <div><h2>Deadline reminders</h2>
+            <p class="sub">A morning email listing anything due in 30 days, 7 days, tomorrow or today, and every week while something is overdue. It covers your deadlines and your employees' certificates.</p></div>
+          <label class="check inline"><input id="a-reminders" type="checkbox"><span>Email me deadline reminders</span></label>
+          <p class="sub" id="email-note" hidden>Email isn't set up on this server yet, so reminder emails are saved to the server's outbox instead of being sent.</p>
+        </div>
+
+        <div class="card">
+          <div><h2>Calendar feed</h2>
+            <p class="sub">Subscribe to this private link in Google Calendar, Outlook or Apple Calendar to see every deadline and certificate expiry on your calendar. It updates on its own.</p></div>
+          <div class="row nowrap"><input id="cal-url" type="text" readonly aria-label="Calendar feed link"><button class="btn" type="button" data-act="copy-cal">Copy</button></div>
+          <details>
+            <summary class="sub">How to subscribe</summary>
+            <ul class="prose">
+              <li><b>Google Calendar:</b> Other calendars → + → From URL, then paste the link.</li>
+              <li><b>Outlook:</b> Add calendar → Subscribe from web, then paste the link.</li>
+              <li><b>Apple Calendar:</b> File → New Calendar Subscription, then paste the link.</li>
+            </ul>
+          </details>
+          <div class="row"><span class="sub">Anyone with the link can see your deadlines.</span><span class="spacer"></span><span id="cal-reset"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <form class="card" id="f-restaurant" autocomplete="off" data-manager-only>
+      <div><h2>Restaurant details</h2><p class="sub" id="restaurant-state"></p></div>
+      <div class="form">
+        <label class="wide">Restaurant name <input id="r-name" type="text" maxlength="100" required></label>
+        <label class="wide">Street address <input id="r-address" type="text" maxlength="120"></label>
+        <label>City <input id="r-city" type="text" maxlength="60"></label>
+        <label>County <input id="r-county" type="text" maxlength="60"></label>
+        <label>ZIP code <input id="r-zip" type="text" maxlength="10"></label>
+        <label>Phone <input id="r-phone" type="tel" maxlength="30"></label>
+        <label>Health permit number <input id="r-permit" type="text" maxlength="60"></label>
+        <label class="wide check inline"><input id="r-alcohol" type="checkbox"><span>We serve or sell alcohol</span></label>
+      </div>
+      <div class="row"><button class="btn primary" type="submit">Save restaurant</button></div>
+    </form>
+
+    <div class="card" data-manager-only>
+      <div><h2>Team</h2><p class="sub" id="team-intro"></p></div>
+      <div class="tablewrap" id="team-members"></div>
+      <form class="form formbox" id="f-invite" autocomplete="off">
+        <label class="wide">Invite by email <input id="inv-email" type="email" maxlength="254" required placeholder="name@example.com"></label>
+        <label>Role <select id="inv-role"></select></label>
+        <div class="row"><button class="btn primary" type="submit">Send invitation</button></div>
+      </form>
+      <div id="invite-result"></div>
+      <div id="team-invites"></div>
+    </div>
+  </section>
 
   <footer id="footer-text"></footer>
 </div>

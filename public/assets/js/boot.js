@@ -15,6 +15,7 @@
     "features/inspection.js",
     "features/employees.js",
     "features/exports.js",
+    "features/settings.js",
     "main.js",
   ];
 

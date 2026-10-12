@@ -31,6 +31,27 @@
   $("bizname").readOnly = !S.canManage;
   $("county").readOnly = !S.canManage;
 
+  // People who belong to more than one restaurant can switch between them.
+  const restaurants = LC.session.restaurants || [];
+  if (restaurants.length > 1) {
+    const select = $("switch-restaurant");
+    select.innerHTML = restaurants
+      .map((r) => `<option value="${esc(r.id)}">${esc(r.name)} (${r.state})</option>`)
+      .join("");
+    select.value = S.restaurant.id;
+    select.hidden = false;
+    $("switch-label").hidden = false;
+    select.addEventListener("change", async () => {
+      try {
+        await LC.api.post("/auth/switch", { restaurantId: select.value });
+        location.href = "/app.html";
+      } catch (e) {
+        U.toast(e.message);
+        select.value = S.restaurant.id;
+      }
+    });
+  }
+
   fetch(`/partials/reference-${LC.config.id}.html`, { credentials: "same-origin" })
     .then((res) => (res.ok ? res.text() : ""))
     .then((html) => {
