@@ -1,0 +1,832 @@
+<title>Line Check California</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a kitchen clipboard. Status strip on top, four tabs (Today / Deadlines / Inspection / Reference), cards only where a log or list lives. */
+:root{
+  --bg:#eef2f4; --surface:#ffffff; --sunk:#e3e9ec; --ink:#14202a; --muted:#566773; --line:#d3dce1;
+  --accent:#0d5a73; --accent-ink:#ffffff; --accent-soft:#d8eaf0;
+  --ok:#1d7340; --ok-soft:#dcf0e3; --warn:#8f5b00; --warn-soft:#fbecc9; --bad:#b1261d; --bad-soft:#fbe0dc;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1418; --surface:#152028; --sunk:#1b2932; --ink:#e4ecf0; --muted:#94a6b2; --line:#283843;
+  --accent:#62b8d3; --accent-ink:#06222c; --accent-soft:#16384a;
+  --ok:#5cc685; --ok-soft:#173826; --warn:#e8ad40; --warn-soft:#3b2d10; --bad:#ff7d70; --bad-soft:#44201c;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1418; --surface:#152028; --sunk:#1b2932; --ink:#e4ecf0; --muted:#94a6b2; --line:#283843;
+  --accent:#62b8d3; --accent-ink:#06222c; --accent-soft:#16384a;
+  --ok:#5cc685; --ok-soft:#173826; --warn:#e8ad40; --warn-soft:#3b2d10; --bad:#ff7d70; --bad-soft:#44201c;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body)}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:18px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:2.3rem;text-transform:uppercase}
+h2{font-size:1.45rem}
+h3{font-size:1.15rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+p{margin:0}
+.sub{color:var(--muted);font-size:.9rem}
+.mono,.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand{display:grid;gap:4px}
+.brand .eyebrow{font:600 .75rem var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.biz{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.biz input{border:1px dashed var(--line);background:transparent;padding:4px 8px;border-radius:var(--r);min-width:0;width:16rem;max-width:100%}
+.modepill{font-size:.78rem;padding:3px 9px;border-radius:99px;background:var(--sunk);color:var(--muted)}
+.modepill.local{background:var(--warn-soft);color:var(--warn)}
+
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;text-align:left;cursor:pointer;border-top:4px solid var(--line)}
+.tile:hover{border-color:var(--accent)}
+.tile .n{font:700 2rem/1 var(--f-mono)}
+.tile .l{font-size:.82rem;color:var(--muted)}
+.tile.bad{border-top-color:var(--bad)} .tile.bad .n{color:var(--bad)}
+.tile.warn{border-top-color:var(--warn)} .tile.warn .n{color:var(--warn)}
+.tile.ok{border-top-color:var(--ok)} .tile.ok .n{color:var(--ok)}
+@media (max-width:720px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+nav.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);overflow-x:auto}
+nav.tabs button{background:none;border:0;padding:10px 14px;font:700 1.1rem var(--f-display);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+.panel{display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;min-width:0}
+.grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.spacer{flex:1}
+
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:var(--r);cursor:pointer;font-weight:600;font-size:.9rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.small{padding:4px 9px;font-size:.82rem}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+.form label,.field{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted);min-width:0}
+.form .wide{grid-column:1/-1}
+input[type=text],input[type=number],input[type=date],input[type=time],input:not([type]),select,textarea{
+  width:100%;min-width:0;padding:7px 9px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);font-size:.95rem;font-weight:400;color:var(--ink)}
+textarea{min-height:4.5em;resize:vertical}
+.hint{font-size:.85rem;padding:8px 10px;border-radius:var(--r);background:var(--sunk);color:var(--muted)}
+.hint.bad{background:var(--bad-soft);color:var(--bad)}
+.hint.ok{background:var(--ok-soft);color:var(--ok)}
+
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;letter-spacing:.02em}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.mute{background:var(--sunk);color:var(--muted)}
+.chip.ex{background:var(--accent-soft);color:var(--accent)}
+
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{text-align:right;white-space:nowrap}
+tr.fail td{background:var(--bad-soft)}
+.empty{padding:18px;border:1px dashed var(--line);border-radius:var(--r);color:var(--muted);font-size:.9rem;display:grid;gap:10px;justify-items:start}
+
+.checks{display:grid;gap:4px}
+.check{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:7px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.check:last-child{border-bottom:0}
+.check input{width:18px;height:18px;margin-top:2px;accent-color:var(--accent)}
+.check .when{font:500 .75rem var(--f-mono);color:var(--muted)}
+.check.done span.t{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.check .cite{display:block;font-size:.75rem;color:var(--muted)}
+
+.cool{display:grid;gap:10px}
+.batch{border:1px solid var(--line);border-left:5px solid var(--line);border-radius:var(--r);padding:10px 12px;display:grid;gap:8px}
+.batch.ok{border-left-color:var(--ok)} .batch.warn{border-left-color:var(--warn)} .batch.bad{border-left-color:var(--bad)}
+.batch .steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.step{background:var(--sunk);border-radius:var(--r);padding:8px;display:grid;gap:4px;font-size:.82rem;min-width:0}
+.step b{font:700 1.05rem var(--f-mono)}
+.step .mini{display:flex;gap:4px}
+.step .mini input{padding:4px 6px}
+@media (max-width:560px){.batch .steps{grid-template-columns:minmax(0,1fr)}}
+
+.dl{display:grid;gap:8px}
+.item{display:grid;grid-template-columns:6px minmax(0,1fr) auto;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 12px 0;align-items:center}
+.item .bar{align-self:stretch;border-radius:0 3px 3px 0;background:var(--line)}
+.item.bad .bar{background:var(--bad)} .item.warn .bar{background:var(--warn)} .item.ok .bar{background:var(--ok)}
+.item .name{font-weight:700}
+.item .meta{font-size:.82rem;color:var(--muted)}
+.item .right{display:grid;justify-items:end;gap:6px;text-align:right}
+.item .due{font:500 .9rem var(--f-mono)}
+@media (max-width:620px){.item{grid-template-columns:6px minmax(0,1fr)}.item .right{grid-column:2;justify-items:start;text-align:left}}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 11px;font-size:.82rem;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.banner{background:var(--accent-soft);color:var(--ink);border-radius:var(--r);padding:10px 14px;font-size:.88rem}
+.banner.warn{background:var(--warn-soft)}
+
+.meter{height:12px;background:var(--sunk);border-radius:99px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.secgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:860px){.secgrid{grid-template-columns:minmax(0,1fr)}}
+.major{font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bad);border:1px solid currentColor;border-radius:3px;padding:0 4px;margin-left:6px;vertical-align:2px}
+
+.ref{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:900px){.ref{grid-template-columns:minmax(0,1fr)}}
+.ref dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+.ref dt{font:700 1rem var(--f-mono);white-space:nowrap}
+.ref dd{margin:0;font-size:.9rem}
+.ref ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:.9rem}
+.thermo{display:grid;gap:3px}
+.thermo div{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;font-size:.85rem}
+.thermo span.t{font:700 .95rem var(--f-mono);text-align:right}
+.thermo .band{padding:4px 8px;border-radius:4px}
+.danger-zone{background:var(--bad-soft);color:var(--bad);font-weight:700}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px;z-index:20}
+.dialog{background:var(--surface);border-radius:var(--r);padding:18px;width:min(560px,100%);max-height:90vh;overflow:auto;display:grid;gap:14px;border:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:var(--r);display:flex;gap:12px;align-items:center;z-index:30;max-width:calc(100% - 32px);font-size:.9rem}
+.toast button{background:none;border:1px solid currentColor;color:inherit;border-radius:4px;padding:2px 8px;cursor:pointer}
+footer{font-size:.8rem;color:var(--muted);max-width:75ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">California Retail Food Code</span>
+      <h1>Line Check</h1>
+      <div class="biz">
+        <label for="bizname" class="sub">Facility</label>
+        <input id="bizname" placeholder="Your restaurant name" maxlength="80">
+        <label for="county" class="sub">County</label>
+        <input id="county" placeholder="e.g. Alameda" maxlength="40" style="width:9rem">
+      </div>
+    </div>
+    <span id="modepill" class="modepill">Connecting…</span>
+  </header>
+
+  <section class="strip" aria-label="Status summary">
+    <button class="tile" id="s-over" data-go="deadlines"><span class="n num">–</span><span class="l">Overdue renewals</span></button>
+    <button class="tile" id="s-soon" data-go="deadlines"><span class="n num">–</span><span class="l">Due in the next 30 days</span></button>
+    <button class="tile" id="s-log" data-go="today"><span class="n num">–</span><span class="l">Readings logged today</span></button>
+    <button class="tile" id="s-ready" data-go="inspection"><span class="n num">–</span><span class="l">Inspection readiness</span></button>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="today" aria-selected="true">Today's log</button>
+    <button role="tab" data-tab="deadlines" aria-selected="false">Permits &amp; renewals</button>
+    <button role="tab" data-tab="inspection" aria-selected="false">Inspection prep</button>
+    <button role="tab" data-tab="reference" aria-selected="false">Quick reference</button>
+  </nav>
+
+  <!-- TODAY -->
+  <section class="panel" id="p-today" role="tabpanel">
+    <div class="row">
+      <label for="day" class="sub">Log date</label>
+      <input type="date" id="day" style="width:auto">
+      <button class="btn small" data-act="today">Today</button>
+      <span class="spacer"></span>
+      <button class="btn small" data-act="export-logs" id="exp-logs" hidden>Export logs (CSV)</button>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div><h2>Temperature &amp; sanitizer log</h2><p class="sub">Pick what you checked. The rule and pass/fail fill in as you type.</p></div>
+        <form id="f-temp" class="form" autocomplete="off">
+          <label class="wide">What you checked <select id="t-what"></select></label>
+          <label>Reading <input id="t-val" type="number" step="0.1" inputmode="decimal" required></label>
+          <label>Time <input id="t-at" type="time" required></label>
+          <label>Initials <input id="t-by" type="text" maxlength="4" required></label>
+          <label class="wide" id="t-act-wrap" hidden>Corrective action (required when out of range)
+            <input id="t-act" type="text" maxlength="200" placeholder="e.g. Moved food to walk-in, called repair, discarded">
+          </label>
+          <div class="wide hint" id="t-hint">Choose a check to see its limit.</div>
+          <div class="wide row"><button class="btn primary" type="submit">Log reading</button></div>
+        </form>
+        <div class="tablewrap" id="temps"></div>
+      </div>
+      <div class="card">
+        <div><h2>Shift checks</h2><p class="sub">Tap to tick. Each tick keeps its time.</p></div>
+        <div id="checks"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div><h2>Cooling log</h2><p class="sub">Hot food must drop from 135°F to 70°F within 2 hours, then to 41°F within 6 hours total (§114002).</p></div>
+      <form id="f-cool" class="form" autocomplete="off">
+        <label class="wide" style="grid-column:span 2">Food <input id="c-food" type="text" maxlength="60" placeholder="e.g. Chicken stock, 4 gal" required></label>
+        <label>Started at <input id="c-start" type="time" required></label>
+        <label>Start temp °F <input id="c-t0" type="number" step="0.1" inputmode="decimal" required></label>
+        <label>Initials <input id="c-by" type="text" maxlength="4" required></label>
+        <div class="row"><button class="btn primary" type="submit">Start batch</button></div>
+      </form>
+      <div class="cool" id="cooling"></div>
+    </div>
+    <details class="card" id="unitcfg">
+      <summary><b>Holding units</b> <span class="sub">— coolers, freezers and hot wells that show up in the log</span></summary>
+      <div id="units"></div>
+      <form id="f-unit" class="form" autocomplete="off">
+        <label>Unit name <input id="u-name" type="text" maxlength="40" placeholder="e.g. Prep-line drawers" required></label>
+        <label>Type <select id="u-kind"><option value="cold">Cold holding (≤41°F)</option><option value="freezer">Freezer (≤0°F)</option><option value="hot">Hot holding (≥135°F)</option></select></label>
+        <div class="row"><button class="btn" type="submit">Add unit</button></div>
+      </form>
+    </details>
+  </section>
+
+  <!-- DEADLINES -->
+  <section class="panel" id="p-deadlines" role="tabpanel" hidden>
+    <div class="row">
+      <div class="filters" id="filters"></div>
+      <span class="spacer"></span>
+      <button class="btn" data-act="export-cal" id="exp-cal" hidden>Export for Google Calendar (CSV)</button>
+      <button class="btn primary" data-act="add-item">Add deadline</button>
+    </div>
+    <div id="dl-banner"></div>
+    <div class="dl" id="dl-list"></div>
+  </section>
+
+  <!-- INSPECTION -->
+  <section class="panel" id="p-inspection" role="tabpanel" hidden>
+    <div class="card">
+      <div class="row"><h2>Self-inspection walkthrough</h2><span class="spacer"></span><span class="sub" id="prep-when"></span></div>
+      <p class="sub">Walk the kitchen the way a county inspector would. Items marked <span class="major">Major</span> are the risk factors that cost the most points and can close a facility.</p>
+      <div class="meter" aria-hidden="true"><i id="prep-meter" style="width:0%"></i></div>
+      <div class="row"><b id="prep-score" class="num">0 of 0 ready</b><span class="spacer"></span><span id="prep-reset"></span></div>
+      <div id="prep-open"></div>
+    </div>
+    <div class="secgrid" id="prep-secs"></div>
+  </section>
+
+  <!-- REFERENCE -->
+  <section class="panel" id="p-reference" role="tabpanel" hidden>
+    <div class="ref">
+      <div class="card">
+        <h2>Temperature ladder</h2>
+        <div class="thermo">
+          <div><span class="t">165°F</span><span class="band">Poultry, stuffed foods, reheating for hot holding</span></div>
+          <div><span class="t">155°F</span><span class="band">Ground meat and fish, 15 seconds</span></div>
+          <div><span class="t">145°F</span><span class="band">Whole-muscle meat, fish, eggs cooked for immediate service</span></div>
+          <div><span class="t">135°F</span><span class="band">Hot holding minimum</span></div>
+          <div><span class="t">41–135</span><span class="band danger-zone">Danger zone. Limit time here.</span></div>
+          <div><span class="t">41°F</span><span class="band">Cold holding maximum</span></div>
+          <div><span class="t">32°F</span><span class="band">Ice-point check for thermometers (±2°F)</span></div>
+        </div>
+        <p class="sub">§113996, §114004, §114016</p>
+      </div>
+      <div class="card">
+        <h2>Cooling &amp; time</h2>
+        <dl>
+          <dt>2 h</dt><dd>135°F down to 70°F</dd>
+          <dt>6 h</dt><dd>Down to 41°F, counted from the start</dd>
+          <dt>2 h</dt><dd>Reheat to 165°F for hot holding</dd>
+          <dt>4 h</dt><dd>Time as a public health control: mark the discard time, toss at 4 hours. Needs written procedures (§114000).</dd>
+        </dl>
+        <h3>If a cooling check fails</h3>
+        <p style="font-size:.9rem">Missed 70°F in 2 hours: reheat to 165°F and restart cooling, or discard. Missed 41°F at 6 hours: discard.</p>
+      </div>
+      <div class="card">
+        <h2>Sanitizer &amp; water</h2>
+        <dl>
+          <dt>100 ppm</dt><dd>Chlorine, 30 seconds contact</dd>
+          <dt>200 ppm</dt><dd>Quaternary ammonium, or the label's concentration</dd>
+          <dt>25 ppm</dt><dd>Iodine, 1 minute contact</dd>
+          <dt>180°F</dt><dd>High-temp dish machine final rinse at the manifold</dd>
+          <dt>100°F</dt><dd>Minimum water temperature at handwash sinks</dd>
+        </dl>
+        <p class="sub">§114099.6, §113953. Keep test strips for the sanitizer you use.</p>
+      </div>
+      <div class="card">
+        <h2>Exclude or restrict staff</h2>
+        <ul>
+          <li>Exclude anyone with vomiting or diarrhea until 24 hours symptom-free</li>
+          <li>Exclude for jaundice, or a diagnosis of norovirus, hepatitis A, Shigella, Shiga toxin E. coli, Salmonella Typhi or non-typhoidal Salmonella</li>
+          <li>Restrict sore throat with fever, and cover infected cuts or burns on hands</li>
+          <li>Call your county environmental health office when two or more staff have the same diagnosed illness</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>What can close you</h2>
+        <p style="font-size:.9rem">An imminent health hazard lets the inspector suspend your permit on the spot. Stop operating and call your county yourself if you have:</p>
+        <ul>
+          <li>No hot water, or no potable water</li>
+          <li>Sewage backing up</li>
+          <li>A vermin infestation</li>
+          <li>A power outage long enough to lose refrigeration</li>
+          <li>Fire or flood damage</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Agencies</h2>
+        <ul>
+          <li><b>Health permit &amp; inspections:</b> your county environmental health department (Berkeley, Long Beach, Pasadena and Vernon run their own). <a href="https://www.ccdeh.org/" target="_blank" rel="noopener">CCDEH directory</a></li>
+          <li><b>Liquor license:</b> <a href="https://www.abc.ca.gov/" target="_blank" rel="noopener">Dept. of Alcoholic Beverage Control</a></li>
+          <li><b>Seller's permit &amp; sales tax:</b> <a href="https://www.cdtfa.ca.gov/" target="_blank" rel="noopener">CDTFA</a></li>
+          <li><b>Workplace safety plans:</b> <a href="https://www.dir.ca.gov/dosh/" target="_blank" rel="noopener">Cal/OSHA</a></li>
+          <li><b>Hood, suppression, extinguishers:</b> your city or county fire marshal</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>Section numbers refer to the California Retail Food Code (Health &amp; Safety Code, Division 104, Part 7). Counties and cities add their own rules and set their own permit dates and fees. Confirm anything you're unsure about with your county environmental health office. This tool helps you keep records; it isn't legal advice.</footer>
+</div>
+
+<div class="overlay" id="ov" hidden>
+  <form class="dialog" id="f-item" autocomplete="off">
+    <h2 id="ov-title">Edit deadline</h2>
+    <div class="form">
+      <label class="wide">Name <input id="i-name" type="text" maxlength="80" required></label>
+      <label>Category <select id="i-cat"></select></label>
+      <label>Repeats <select id="i-cycle">
+        <option value="0">One-time</option><option value="1">Monthly</option><option value="3">Every 3 months</option>
+        <option value="6">Every 6 months</option><option value="12">Every year</option><option value="24">Every 2 years</option>
+        <option value="36">Every 3 years</option><option value="60">Every 5 years</option></select></label>
+      <label class="wide">Agency or vendor <input id="i-agency" type="text" maxlength="80"></label>
+      <label>Due / expires <input id="i-due" type="date"></label>
+      <label>Last done <input id="i-last" type="date"></label>
+      <label class="wide">Notes <textarea id="i-notes" maxlength="500"></textarea></label>
+    </div>
+    <div class="row">
+      <button class="btn primary" type="submit">Save</button>
+      <button class="btn" type="button" data-act="close-ov">Cancel</button>
+      <span class="spacer"></span>
+      <button class="btn danger" type="button" id="i-del" data-act="del-item">Delete</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden><span id="toast-t"></span><button id="toast-b" type="button" hidden>Undo</button></div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- reference data ---------- */
+var CATS = {permit:"Permits & licenses", cert:"Certifications", fire:"Fire & life safety", service:"Facility service", labor:"Labor & tax"};
+var CHECKS = [
+  {k:"cook_poultry", g:"Cooking (final internal temp)", l:"Poultry or stuffed food", u:"°F", ok:function(v){return v>=165}, r:"165°F or higher"},
+  {k:"cook_ground", g:"Cooking (final internal temp)", l:"Ground meat or fish", u:"°F", ok:function(v){return v>=155}, r:"155°F or higher for 15 seconds"},
+  {k:"cook_whole", g:"Cooking (final internal temp)", l:"Whole-muscle meat, fish, eggs", u:"°F", ok:function(v){return v>=145}, r:"145°F or higher for 15 seconds"},
+  {k:"reheat", g:"Cooking (final internal temp)", l:"Reheat for hot holding", u:"°F", ok:function(v){return v>=165}, r:"165°F within 2 hours"},
+  {k:"chlorine", g:"Sanitizer & water", l:"Sanitizer: chlorine", u:"ppm", ok:function(v){return v>=100}, r:"100 ppm or higher"},
+  {k:"quat", g:"Sanitizer & water", l:"Sanitizer: quat", u:"ppm", ok:function(v){return v>=200}, r:"200 ppm, or the label's concentration"},
+  {k:"dish", g:"Sanitizer & water", l:"Dish machine final rinse", u:"°F", ok:function(v){return v>=180}, r:"180°F at the manifold (high-temp machine)"},
+  {k:"handwash", g:"Sanitizer & water", l:"Handwash sink water", u:"°F", ok:function(v){return v>=100}, r:"100°F or higher"},
+  {k:"calib", g:"Sanitizer & water", l:"Thermometer ice-point check", u:"°F", ok:function(v){return Math.abs(v-32)<=2}, r:"32°F ± 2°F in ice water"}
+];
+var KINDS = {
+  cold:{ok:function(v){return v<=41}, r:"41°F or below"},
+  freezer:{ok:function(v){return v<=0}, r:"0°F or below (house standard: food must stay frozen)"},
+  hot:{ok:function(v){return v>=135}, r:"135°F or above"}
+};
+var DEFAULT_UNITS = [
+  {id:"walkin", name:"Walk-in cooler", kind:"cold"},
+  {id:"reachin", name:"Reach-in, line", kind:"cold"},
+  {id:"freezer", name:"Walk-in freezer", kind:"freezer"},
+  {id:"steam", name:"Steam table", kind:"hot"}
+];
+var SHIFT = [
+  {g:"Opening", items:[
+    ["soap","Handwash sinks stocked with soap and paper towels, nothing stored in them"],
+    ["hotwater","Hot water at every sink"],
+    ["sani","Sanitizer buckets mixed and tested with strips"],
+    ["health","Staff asked about vomiting, diarrhea, jaundice, sore throat with fever"],
+    ["probe","Clean, calibrated probe thermometer on the line"],
+    ["pests","No droppings, live insects or gnaw marks"],
+    ["labels","Prepped food covered, labeled and 6 in. off the floor"]
+  ]},
+  {g:"Closing", items:[
+    ["coolchk","Every cooling batch checked and logged"],
+    ["tphc","Food held on time control discarded at 4 hours"],
+    ["clean","Food-contact surfaces washed, rinsed, sanitized"],
+    ["trash","Trash out, dumpster lid closed, grease bin covered"],
+    ["doors","Back door closed, screens and air curtains working"]
+  ]}
+];
+var PREP = [
+  {s:"Knowledge & permits", items:[
+    ["p1","Health permit is current and posted where customers can see it",0],
+    ["p2","A Certified Food Protection Manager is on staff and the certificate is on site","§113947.1"],
+    ["p3","Every food handler has a valid card (within 30 days of hire); copies are on file","§113948"],
+    ["p4","The person in charge can explain holding temps, cooling steps and the illness policy",0]
+  ]},
+  {s:"Employee health & hygiene", items:[
+    ["h1","Staff know to report vomiting, diarrhea, jaundice and diagnosed illness; exclusion policy is written",0,1],
+    ["h2","Handwash sinks are accessible, stocked, used only for handwashing, and at 100°F or more","§113953",1],
+    ["h3","No bare-hand contact with ready-to-eat food; gloves or utensils in use","§113961",1],
+    ["h4","Hair restrained; staff drinks are covered and kept away from prep areas",0]
+  ]},
+  {s:"Time & temperature", items:[
+    ["t1","Every cold-holding unit holds food at 41°F or below","§113996",1],
+    ["t2","Hot-held food is at 135°F or above","§113996",1],
+    ["t3","Cooling follows 135→70°F in 2 h, →41°F in 6 h, and the log shows it","§114002",1],
+    ["t4","Food reheated for hot holding reaches 165°F within 2 hours","§114016",1],
+    ["t5","Cooked foods reach required final temps and are spot-checked","§114004",1],
+    ["t6","Any food on time control has written procedures and a marked discard time","§114000",1],
+    ["t7","A working probe thermometer (accurate to ±2°F) is on hand",0]
+  ]},
+  {s:"Protection from contamination", items:[
+    ["c1","Raw meat stored below and away from ready-to-eat food",0,1],
+    ["c2","Food covered, labeled and stored at least 6 inches off the floor",0],
+    ["c3","Wiping cloths are kept in sanitizer between uses",0],
+    ["c4","Sanitizer is at the right strength and test strips are on hand","§114099.6",1],
+    ["c5","Dish machine or 3-compartment sink reaches sanitizing temp or concentration","§114099.6",1]
+  ]},
+  {s:"Sources & labeling", items:[
+    ["a1","All food comes from approved sources and invoices are kept",0,1],
+    ["a2","Shellfish tags are kept for 90 days after the container is emptied",0],
+    ["a3","Menu has a consumer advisory for raw or undercooked animal foods","§114093"],
+    ["a4","Bulk food containers are labeled with the food's name",0]
+  ]},
+  {s:"Facility & records", items:[
+    ["f1","Hot and cold running water; no sewage or drain backups",0,1],
+    ["f2","No sign of rodents, roaches or flies",0,1],
+    ["f3","Chemicals are labeled and stored below and away from food",0],
+    ["f4","Restrooms are clean, stocked and have self-closing doors",0],
+    ["f5","Pest control reports, grease pumping receipts and hood cleaning tags are on file",0],
+    ["f6","The last 90 days of temperature and cooling logs are easy to show",0]
+  ]}
+];
+var STARTER = [
+  ["County health permit","permit",12,"County environmental health","Annual. Your county sets the renewal date and fee."],
+  ["Food Protection Manager certificate","cert",60,"ANSI-accredited exam provider","At least one owner or employee must hold one. Valid 5 years."],
+  ["Food handler cards","cert",36,"ANSI-accredited training provider","Each food employee, within 30 days of hire. Valid 3 years. Employer pays for training time and cost."],
+  ["City business license / tax certificate","permit",12,"City finance or treasurer",""],
+  ["ABC liquor license","permit",12,"Dept. of Alcoholic Beverage Control","Only if you serve alcohol."],
+  ["Seller's permit: sales tax return","labor",3,"CDTFA","Filing frequency is set by CDTFA. Quarterly is common."],
+  ["Kitchen hood & duct cleaning","fire",6,"Hood cleaning contractor","NFPA 96: quarterly for high-volume (wok, charbroil, 24-hour), semiannual for moderate."],
+  ["Fire suppression system inspection","fire",6,"Licensed fire protection contractor","Semiannual service tag on the hood system."],
+  ["Portable fire extinguishers service","fire",12,"Licensed fire protection contractor","Annual service. Do a monthly visual check too, including the K-class unit."],
+  ["Fire department operating permit","fire",12,"City or county fire marshal","Required in many jurisdictions for assembly occupancy or cooking operations."],
+  ["Backflow preventer test","service",12,"Water supplier / certified tester","Annual test report goes to your water supplier."],
+  ["Grease interceptor pumping","service",3,"Grease hauler","Interval set by your local FOG program."],
+  ["Pest control service","service",1,"Pest control operator","Keep every service report for the inspector."],
+  ["Labor law posters","labor",12,"Employer","Refresh each January when minimum wage and notices change."],
+  ["IIPP & Workplace Violence Prevention Plan review","labor",12,"Cal/OSHA","Both written plans are required. Review and train yearly."]
+];
+
+/* ---------- helpers ---------- */
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function pad(n){return String(n).padStart(2,"0")}
+function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function parseYmd(s){var p=s.split("-").map(Number);return new Date(p[0],p[1]-1,p[2])}
+function todayStr(){return ymd(new Date())}
+function nowHM(){var d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes())}
+function daysUntil(s){return Math.round((parseYmd(s)-parseYmd(todayStr()))/864e5)}
+function addMonths(s,n){var d=parseYmd(s),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);var last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return ymd(d)}
+function fmtDate(s){if(!s)return "";return parseYmd(s).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}
+function fmtHM(hm){if(!hm)return "";var p=hm.split(":").map(Number);var d=new Date();d.setHours(p[0],p[1],0,0);return d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}
+function hmAdd(hm,mins){var p=hm.split(":").map(Number);var t=p[0]*60+p[1]+mins;var day=Math.floor(t/1440);t=((t%1440)+1440)%1440;return {hm:pad(Math.floor(t/60))+":"+pad(t%60),nextDay:day>0}}
+function minsSince(date,hm){var p=hm.split(":").map(Number);var d=parseYmd(date);d.setHours(p[0],p[1],0,0);return (Date.now()-d.getTime())/6e4}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+var LS={get:function(k,d){try{var v=localStorage.getItem("linecheck:"+k);return v?JSON.parse(v):d}catch(e){return d}},
+        set:function(k,v){try{localStorage.setItem("linecheck:"+k,JSON.stringify(v))}catch(e){}},
+        keys:function(){try{return Object.keys(localStorage).filter(function(k){return k.indexOf("linecheck:")===0}).map(function(k){return k.slice(10)})}catch(e){return []}}};
+
+var toastTimer=null,undoFn=null;
+function toast(msg,undo){$("toast-t").textContent=msg;undoFn=undo||null;$("toast-b").hidden=!undo;$("toast").hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(function(){$("toast").hidden=true},undo?7000:3500)}
+$("toast-b").onclick=function(){if(undoFn)undoFn();$("toast").hidden=true};
+function showErr(e){
+  var c=e&&e.code;
+  if(c==="quota_exceeded")toast("Storage is full. Delete old deadlines or logs, then try again.");
+  else if(c==="invalid_argument")toast("You have view-only access, so changes can't be saved.");
+  else toast("Couldn't save. Check your connection and try again.");
+}
+
+/* ---------- state & store ---------- */
+var S={mode:"connecting",items:[],itemsLoaded:false,date:todayStr(),day:null,prep:{ticks:{}},settings:{units:DEFAULT_UNITS.slice(),name:"",county:""},tab:"today",filter:"all",editing:null};
+var db=null,dl=null,subs={},chains={};
+function chain(key,fn){var p=(chains[key]||Promise.resolve()).then(fn);chains[key]=p.catch(function(){});return p}
+function onDbErr(e){if(e&&e.code==="revoked"){S.mode="local";}render()}
+function blankDay(d){return {date:d,temps:[],cooling:[],checks:{}}}
+
+function startItems(){
+  if(S.mode==="db"){
+    subs.items=db.collection("items").onSnapshot(function(s){S.items=s.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});S.itemsLoaded=true;render()},onDbErr);
+  }else{
+    var all=LS.get("items",{});S.items=Object.keys(all).map(function(id){var o=all[id];o.id=id;return o});S.itemsLoaded=true;
+  }
+}
+function putItem(id,data){
+  var body=clone(data);delete body.id;
+  if(S.mode==="db")return chain("i"+id,function(){return db.doc("items/"+id).set(body)}).catch(showErr);
+  var all=LS.get("items",{});all[id]=body;LS.set("items",all);startItems();render();return Promise.resolve();
+}
+function delItem(id){
+  if(S.mode==="db")return chain("i"+id,function(){return db.doc("items/"+id).delete()}).catch(showErr);
+  var all=LS.get("items",{});delete all[id];LS.set("items",all);startItems();render();return Promise.resolve();
+}
+function watchDay(){
+  if(subs.day){subs.day();subs.day=null}
+  var date=S.date;S.day=null;
+  if(S.mode==="db"){
+    subs.day=db.doc("days/"+date).onSnapshot(function(s){if(date!==S.date)return;S.day=s.exists?clone(s.data()):blankDay(date);render()},onDbErr);
+  }else{S.day=LS.get("day:"+date,null)||blankDay(date)}
+}
+function mutateDay(fn){
+  var date=S.date;
+  return chain("d"+date,function(){
+    var cur=clone(S.date===date&&S.day?S.day:blankDay(date));fn(cur);cur.date=date;
+    if(S.date===date){S.day=cur;render()}
+    if(S.mode==="db")return db.doc("days/"+date).set(cur);
+    LS.set("day:"+date,cur);
+  }).catch(showErr);
+}
+function watchDoc(path,key,fallback){
+  if(S.mode==="db"){
+    subs[key]=db.doc(path).onSnapshot(function(s){if(s.exists)S[key]=Object.assign(clone(fallback),clone(s.data()));render()},onDbErr);
+  }else{var v=LS.get(key,null);if(v)S[key]=Object.assign(clone(fallback),v)}
+}
+function mutateDoc(path,key,fn){
+  return chain(key,function(){
+    var cur=clone(S[key]);fn(cur);S[key]=cur;render();
+    if(S.mode==="db")return db.doc(path).set(cur);
+    LS.set(key,cur);
+  }).catch(showErr);
+}
+function startAll(){
+  startItems();watchDay();
+  watchDoc("prep/current","prep",{ticks:{}});
+  watchDoc("settings/main","settings",{units:DEFAULT_UNITS.slice(),name:"",county:""});
+}
+
+/* ---------- derived ---------- */
+function statusOf(it){
+  if(it.done)return {k:"mute",label:"Completed",sort:1e6};
+  if(!it.due)return {k:"mute",label:"Set a date",sort:9e5};
+  var d=daysUntil(it.due);
+  if(d<0)return {k:"bad",label:(-d)+(d===-1?" day":" days")+" overdue",sort:d};
+  if(d===0)return {k:"bad",label:"Due today",sort:0};
+  if(d<=30)return {k:"warn",label:"Due in "+d+(d===1?" day":" days"),sort:d};
+  return {k:"ok",label:d>90?"Due in "+Math.round(d/30.4)+" months":"Due in "+d+" days",sort:d};
+}
+function checkFor(key){
+  if(!key)return null;
+  if(key.indexOf("u:")===0){var u=S.settings.units.find(function(x){return "u:"+x.id===key});if(!u)return null;var K=KINDS[u.kind];return {label:u.name,unit:"°F",ok:K.ok,rule:K.r}}
+  var c=CHECKS.find(function(x){return "c:"+x.k===key});return c?{label:c.l,unit:c.u,ok:c.ok,rule:c.r}:null;
+}
+function prepCount(){var t=0,n=0;PREP.forEach(function(s){s.items.forEach(function(i){t++;if(S.prep.ticks&&S.prep.ticks[i[0]])n++})});return {t:t,n:n}}
+
+/* ---------- render ---------- */
+function setTile(id,n,cls){var el=$(id);el.querySelector(".n").textContent=n;el.className="tile "+(cls||"")}
+function render(){
+  var pill=$("modepill");
+  pill.textContent=S.mode==="db"?"Synced for your team":S.mode==="local"?"Saved on this device only":"Connecting…";
+  pill.className="modepill"+(S.mode==="local"?" local":"");
+  if(document.activeElement!==$("bizname"))$("bizname").value=S.settings.name||"";
+  if(document.activeElement!==$("county"))$("county").value=S.settings.county||"";
+  $("exp-logs").hidden=$("exp-cal").hidden=!dl;
+
+  // summary
+  if(S.itemsLoaded){
+    var over=0,soon=0;S.items.forEach(function(it){var s=statusOf(it);if(s.k==="bad")over++;else if(s.k==="warn")soon++});
+    setTile("s-over",over,over?"bad":"ok");setTile("s-soon",soon,soon?"warn":"ok");
+  }
+  if(S.day&&S.date===todayStr()){
+    var fails=S.day.temps.filter(function(t){return !t.ok}).length;
+    setTile("s-log",S.day.temps.length,fails?"bad":S.day.temps.length?"ok":"");
+    $("s-log").querySelector(".l").textContent=fails?fails+" out of range today":"Readings logged today";
+  }
+  var pc=prepCount(),pct=pc.t?Math.round(pc.n/pc.t*100):0;
+  setTile("s-ready",pct+"%",pct>=90?"ok":pct>=60?"warn":"bad");
+
+  renderToday();renderDeadlines();renderPrep();
+}
+
+function keepInputs(el,fn){var saved={};el.querySelectorAll("input").forEach(function(i){if(i.id)saved[i.id]=i.value});var f=document.activeElement&&document.activeElement.id;fn();Object.keys(saved).forEach(function(id){var i=$(id);if(i&&saved[id])i.value=saved[id]});if(f&&$(f))$(f).focus()}
+
+var lastUnitsKey="";
+function renderToday(){
+  $("day").value=S.date;
+  var key=JSON.stringify(S.settings.units);
+  if(key!==lastUnitsKey){
+    lastUnitsKey=key;var sel=$("t-what"),prev=sel.value;
+    var h='<option value="">Choose…</option><optgroup label="Holding units">'+S.settings.units.map(function(u){return '<option value="u:'+esc(u.id)+'">'+esc(u.name)+'</option>'}).join("")+'</optgroup>';
+    var groups={};CHECKS.forEach(function(c){(groups[c.g]=groups[c.g]||[]).push(c)});
+    Object.keys(groups).forEach(function(g){h+='<optgroup label="'+esc(g)+'">'+groups[g].map(function(c){return '<option value="c:'+c.k+'">'+esc(c.l)+'</option>'}).join("")+'</optgroup>'});
+    sel.innerHTML=h;sel.value=prev;updateHint();
+    $("units").innerHTML='<div class="checks">'+S.settings.units.map(function(u){return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>'+esc(u.name)+'</span><span class="chip mute">'+esc(KINDS[u.kind].r.split(" (")[0])+'</span><span class="spacer"></span><button class="btn small" data-act="del-unit" data-id="'+esc(u.id)+'">Remove</button></div>'}).join("")+'</div>';
+  }
+  if(!$("t-at").value)$("t-at").value=nowHM();
+  if(!$("c-start").value)$("c-start").value=nowHM();
+
+  var d=S.day;
+  if(!d){$("temps").innerHTML='<div class="empty">Loading this day’s log…</div>';$("checks").innerHTML="";$("cooling").innerHTML="";return}
+  var rows=d.temps.slice().sort(function(a,b){return a.at<b.at?1:-1});
+  $("temps").innerHTML=rows.length?'<table><thead><tr><th>Time</th><th>Check</th><th style="text-align:right">Reading</th><th>Result</th><th>By</th><th></th></tr></thead><tbody>'+rows.map(function(t){
+    return '<tr class="'+(t.ok?"":"fail")+'"><td class="num">'+esc(fmtHM(t.at))+'</td><td>'+esc(t.what)+(t.action?'<div class="sub">Action: '+esc(t.action)+'</div>':"")+'</td><td class="num">'+esc(t.value)+" "+esc(t.unit)+'</td><td><span class="chip '+(t.ok?"ok":"bad")+'">'+(t.ok?"Pass":"Out of range")+'</span></td><td class="mono">'+esc(t.by)+'</td><td><button class="btn small" data-act="del-temp" data-id="'+esc(t.id)+'" aria-label="Remove reading">✕</button></td></tr>'}).join("")+'</tbody></table>'
+    :'<div class="empty">No readings for '+esc(fmtDate(S.date))+' yet. Log the walk-in first thing; most counties expect at least two checks per shift.</div>';
+
+  var ch=d.checks||{};
+  $("checks").innerHTML=SHIFT.map(function(g){return '<h3>'+g.g+'</h3><div class="checks">'+g.items.map(function(i){var on=ch[i[0]];return '<label class="check'+(on?" done":"")+'"><input type="checkbox" data-act="tick" data-id="'+i[0]+'"'+(on?" checked":"")+'><span class="t">'+esc(i[1])+'</span><span class="when">'+(on?esc(fmtHM(on)):"")+'</span></label>'}).join("")+'</div>'}).join("");
+
+  keepInputs($("cooling"),function(){
+    $("cooling").innerHTML=d.cooling.length?d.cooling.map(coolHTML).join(""):'<div class="empty">No cooling batches today. Start one when a hot item comes off the stove for storage.</div>';
+  });
+}
+function coolHTML(b){
+  var t2=hmAdd(b.start,120),t6=hmAdd(b.start,360),el=S.date===todayStr()||b.r6?minsSince(S.date,b.start):Infinity;
+  var st,cls;
+  if(b.r2&&b.r2.v>70){st="Missed 70°F at 2 hours. Reheat to 165°F and restart, or discard.";cls="bad"}
+  else if(b.r6&&b.r6.v>41){st="Missed 41°F at 6 hours. Discard.";cls="bad"}
+  else if(b.r6){st="Cooled safely.";cls="ok"}
+  else if(!b.r2&&el>120){st="2-hour check is overdue.";cls="bad"}
+  else if(b.r2&&el>360){st="6-hour check is overdue.";cls="bad"}
+  else if(!b.r2){st="Next: under 70°F by "+fmtHM(t2.hm)+".";cls="warn"}
+  else{st="Next: under 41°F by "+fmtHM(t6.hm)+(t6.nextDay?" tomorrow":"")+".";cls="warn"}
+  function step(label,lim,r,which,due){
+    var inner=r?'<b class="'+(r.v<=lim?"":"")+'">'+esc(r.v)+'°F</b><span class="sub">at '+esc(fmtHM(r.at))+'</span>'
+      :'<div class="mini"><input id="cv'+which+'-'+esc(b.id)+'" type="number" step="0.1" inputmode="decimal" placeholder="°F" aria-label="'+label+' reading"><button class="btn small" data-act="cool-read" data-w="'+which+'" data-id="'+esc(b.id)+'">Log</button></div>';
+    return '<div class="step"><span>'+label+' · by '+esc(fmtHM(due))+'</span>'+inner+'</div>';
+  }
+  return '<div class="batch '+cls+'"><div class="row"><b>'+esc(b.food)+'</b><span class="sub">'+esc(b.by)+'</span><span class="spacer"></span><span class="chip '+cls+'">'+esc(st)+'</span><button class="btn small" data-act="del-cool" data-id="'+esc(b.id)+'" aria-label="Remove batch">✕</button></div>'+
+    '<div class="steps"><div class="step"><span>Start · '+esc(fmtHM(b.start))+'</span><b>'+esc(b.t0)+'°F</b></div>'+step("≤70°F",70,b.r2,2,t2.hm)+(b.r2?step("≤41°F",41,b.r6,6,t6.hm):'<div class="step"><span>≤41°F · by '+esc(fmtHM(t6.hm))+'</span><span class="sub">After the 2-hour check</span></div>')+'</div></div>';
+}
+
+function renderDeadlines(){
+  var cats=[["all","All"]].concat(Object.keys(CATS).map(function(k){return [k,CATS[k]]}));
+  $("filters").innerHTML=cats.map(function(c){return '<button type="button" data-act="filter" data-id="'+c[0]+'" aria-pressed="'+(S.filter===c[0])+'">'+esc(c[1])+'</button>'}).join("");
+  if(!S.itemsLoaded){$("dl-list").innerHTML='<div class="empty">Loading your deadlines…</div>';return}
+  var ex=S.items.some(function(i){return i.example});
+  $("dl-banner").innerHTML=ex?'<div class="banner">Rows tagged <span class="chip ex">Example</span> have placeholder dates. Open each one and enter the date from your own permit, certificate or service receipt. Delete the ones that don’t apply to you.</div>':"";
+  if(!S.items.length){
+    $("dl-list").innerHTML='<div class="empty"><b>No deadlines yet.</b><span>Start with the '+STARTER.length+' renewals most California restaurants track: health permit, manager and food handler certificates, hood cleaning, fire suppression, backflow, grease, pest control and more. You fill in the dates.</span><button class="btn primary" data-act="starter">Add California starter list</button></div>';return;
+  }
+  var list=S.items.filter(function(i){return S.filter==="all"||i.cat===S.filter}).map(function(i){return {i:i,s:statusOf(i)}}).sort(function(a,b){return a.s.sort-b.s.sort||String(a.i.name).localeCompare(b.i.name)});
+  $("dl-list").innerHTML=list.length?list.map(function(x){var it=x.i,s=x.s;var cyc=+it.cycle||0;
+    return '<div class="item '+s.k+'"><span class="bar"></span><div style="min-width:0"><div class="row" style="gap:6px"><span class="name">'+esc(it.name)+'</span>'+(it.example?'<span class="chip ex">Example</span>':"")+'</div>'+
+      '<div class="meta">'+esc(CATS[it.cat]||"")+(it.agency?" · "+esc(it.agency):"")+" · "+(cyc?(cyc===1?"Monthly":cyc===12?"Yearly":"Every "+cyc+" months"):"One-time")+(it.lastDone?" · Last done "+esc(fmtDate(it.lastDone)):"")+'</div>'+
+      (it.notes?'<div class="meta" style="margin-top:2px">'+esc(it.notes)+'</div>':"")+'</div>'+
+      '<div class="right"><span class="chip '+s.k+'">'+esc(s.label)+'</span>'+(it.due&&!it.done?'<span class="due">'+esc(fmtDate(it.due))+'</span>':"")+
+      '<div class="row">'+(it.done?"":'<button class="btn small" data-act="renew" data-id="'+esc(it.id)+'">'+(cyc?"Mark renewed":"Mark done")+'</button>')+'<button class="btn small" data-act="edit" data-id="'+esc(it.id)+'">Edit</button></div></div></div>'}).join("")
+    :'<div class="empty">Nothing in this category.</div>';
+}
+
+var resetArmed=false;
+function renderPrep(){
+  var pc=prepCount(),pct=pc.t?Math.round(pc.n/pc.t*100):0,ticks=S.prep.ticks||{};
+  $("prep-meter").style.width=pct+"%";
+  $("prep-score").textContent=pc.n+" of "+pc.t+" ready ("+pct+"%)";
+  $("prep-when").textContent=S.prep.started?"Walkthrough started "+fmtDate(S.prep.started):"";
+  $("prep-reset").innerHTML=pc.n?(resetArmed?'<span class="sub">Clear every tick?</span> <button class="btn small danger" data-act="reset-prep">Yes, start over</button> <button class="btn small" data-act="reset-cancel">Keep</button>':'<button class="btn small" data-act="reset-arm">Start a new walkthrough</button>'):"";
+  var open=[];PREP.forEach(function(s){s.items.forEach(function(i){if(i[3]&&!ticks[i[0]])open.push(i[1])})});
+  $("prep-open").innerHTML=open.length?'<div class="banner warn"><b>'+open.length+' major item'+(open.length>1?"s":"")+' not yet confirmed.</b> Fix these before anything else.</div>':'<div class="banner">Every major risk factor is confirmed.</div>';
+  $("prep-secs").innerHTML=PREP.map(function(s){var done=s.items.filter(function(i){return ticks[i[0]]}).length;
+    return '<div class="card"><div class="row"><h2>'+esc(s.s)+'</h2><span class="spacer"></span><span class="chip '+(done===s.items.length?"ok":"mute")+'">'+done+"/"+s.items.length+'</span></div><div class="checks">'+s.items.map(function(i){var on=ticks[i[0]];
+      return '<label class="check'+(on?" done":"")+'"><input type="checkbox" data-act="prep" data-id="'+i[0]+'"'+(on?" checked":"")+'><span><span class="t">'+esc(i[1])+'</span>'+(i[3]?'<span class="major">Major</span>':"")+(i[2]?'<span class="cite">'+esc(i[2])+'</span>':"")+'</span><span class="when">'+(on?esc(fmtDate(on).replace(/, \d{4}$/,"")):"")+'</span></label>'}).join("")+'</div></div>'}).join("");
+}
+
+/* ---------- tabs ---------- */
+function setTab(t){
+  if(!$("p-"+t))t="today";S.tab=t;
+  document.querySelectorAll("nav.tabs button").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.tab===t))});
+  ["today","deadlines","inspection","reference"].forEach(function(k){$("p-"+k).hidden=k!==t});
+  try{history.replaceState(null,"","#"+t)}catch(e){}
+  try{localStorage.setItem("linecheck-ui:tab",t)}catch(e){}
+}
+document.querySelectorAll("nav.tabs button").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
+document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){setTab(b.dataset.go)}});
+
+/* ---------- temp form ---------- */
+function updateHint(){
+  var c=checkFor($("t-what").value),v=parseFloat($("t-val").value),h=$("t-hint");
+  if(!c){h.className="wide hint";h.textContent="Choose a check to see its limit.";$("t-act-wrap").hidden=true;$("t-act").required=false;return}
+  if(isNaN(v)){h.className="wide hint";h.textContent="Limit: "+c.rule+".";$("t-act-wrap").hidden=true;$("t-act").required=false;return}
+  var ok=c.ok(v);h.className="wide hint "+(ok?"ok":"bad");
+  h.textContent=ok?"Pass. Limit: "+c.rule+".":"Out of range. Limit: "+c.rule+". Record what you did about it.";
+  $("t-act-wrap").hidden=ok;$("t-act").required=!ok;
+}
+$("t-what").onchange=updateHint;$("t-val").oninput=updateHint;
+$("f-temp").onsubmit=function(e){
+  e.preventDefault();var c=checkFor($("t-what").value);if(!c){$("t-what").focus();return}
+  var v=parseFloat($("t-val").value),ok=c.ok(v);
+  var entry={id:uid(),at:$("t-at").value,what:c.label,key:$("t-what").value,value:v,unit:c.unit,ok:ok,by:$("t-by").value.trim().toUpperCase(),action:ok?"":$("t-act").value.trim()};
+  mutateDay(function(d){d.temps.push(entry)});
+  $("t-val").value="";$("t-act").value="";$("t-at").value=nowHM();updateHint();$("t-val").focus();
+  toast(ok?"Logged "+c.label+" at "+v+" "+c.unit+".":"Logged out-of-range reading with corrective action.");
+};
+$("f-cool").onsubmit=function(e){
+  e.preventDefault();
+  var b={id:uid(),food:$("c-food").value.trim(),start:$("c-start").value,t0:parseFloat($("c-t0").value),by:$("c-by").value.trim().toUpperCase(),r2:null,r6:null};
+  mutateDay(function(d){d.cooling.push(b)});
+  $("c-food").value="";$("c-t0").value="";$("c-start").value=nowHM();
+  toast("Cooling started. 70°F due by "+fmtHM(hmAdd(b.start,120).hm)+".");
+};
+$("f-unit").onsubmit=function(e){
+  e.preventDefault();var name=$("u-name").value.trim();if(!name)return;var kind=$("u-kind").value;
+  mutateDoc("settings/main","settings",function(s){s.units.push({id:uid(),name:name,kind:kind})});$("u-name").value="";
+};
+$("day").onchange=function(){if($("day").value){S.date=$("day").value;watchDay();render()}};
+var nameTimer=null;
+function saveBiz(){clearTimeout(nameTimer);nameTimer=setTimeout(function(){var n=$("bizname").value.trim(),c=$("county").value.trim();if(n===(S.settings.name||"")&&c===(S.settings.county||""))return;mutateDoc("settings/main","settings",function(s){s.name=n;s.county=c})},700)}
+$("bizname").oninput=saveBiz;$("county").oninput=saveBiz;
+
+/* ---------- deadline dialog ---------- */
+$("i-cat").innerHTML=Object.keys(CATS).map(function(k){return '<option value="'+k+'">'+esc(CATS[k])+'</option>'}).join("");
+var delArmed=false;
+function openItem(it){
+  S.editing=it?it.id:null;delArmed=false;
+  $("ov-title").textContent=it?"Edit deadline":"Add deadline";
+  $("i-name").value=it?it.name:"";$("i-cat").value=it?it.cat:"permit";$("i-cycle").value=String(it?(+it.cycle||0):12);
+  $("i-agency").value=it?it.agency||"":"";$("i-due").value=it?it.due||"":"";$("i-last").value=it?it.lastDone||"":"";$("i-notes").value=it?it.notes||"":"";
+  $("i-del").hidden=!it;$("i-del").textContent="Delete";
+  $("ov").hidden=false;$("i-name").focus();
+}
+function closeItem(){$("ov").hidden=true;S.editing=null}
+$("ov").addEventListener("click",function(e){if(e.target===$("ov"))closeItem()});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("ov").hidden)closeItem()});
+$("f-item").onsubmit=function(e){
+  e.preventDefault();var id=S.editing||uid();var prev=S.items.find(function(i){return i.id===id})||{};
+  var data={name:$("i-name").value.trim(),cat:$("i-cat").value,cycle:+$("i-cycle").value,agency:$("i-agency").value.trim(),due:$("i-due").value,lastDone:$("i-last").value,notes:$("i-notes").value.trim(),example:false,done:prev.done&&prev.due===$("i-due").value?true:false};
+  putItem(id,data);closeItem();toast("Saved "+data.name+".");
+};
+
+/* ---------- click delegation ---------- */
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-act]");if(!b)return;var act=b.dataset.act,id=b.dataset.id;
+  if(act==="today"){S.date=todayStr();watchDay();render()}
+  else if(act==="tick"){var t=b.checked?nowHM():null;mutateDay(function(d){d.checks=d.checks||{};if(t)d.checks[id]=t;else delete d.checks[id]})}
+  else if(act==="prep"){var on=b.checked;mutateDoc("prep/current","prep",function(p){p.ticks=p.ticks||{};if(on)p.ticks[id]=todayStr();else delete p.ticks[id];if(!p.started)p.started=todayStr()})}
+  else if(act==="reset-arm"){resetArmed=true;renderPrep()}
+  else if(act==="reset-cancel"){resetArmed=false;renderPrep()}
+  else if(act==="reset-prep"){resetArmed=false;mutateDoc("prep/current","prep",function(p){p.ticks={};p.started=todayStr()});toast("New walkthrough started.")}
+  else if(act==="del-temp"){var old=(S.day.temps||[]).find(function(t){return t.id===id});mutateDay(function(d){d.temps=d.temps.filter(function(t){return t.id!==id})});toast("Reading removed.",function(){mutateDay(function(d){d.temps.push(old)})})}
+  else if(act==="del-cool"){var oc=(S.day.cooling||[]).find(function(c){return c.id===id});mutateDay(function(d){d.cooling=d.cooling.filter(function(c){return c.id!==id})});toast("Batch removed.",function(){mutateDay(function(d){d.cooling.push(oc)})})}
+  else if(act==="cool-read"){var w=b.dataset.w,inp=$("cv"+w+"-"+id),v=parseFloat(inp&&inp.value);if(isNaN(v)){inp&&inp.focus();return}
+    mutateDay(function(d){var c=d.cooling.find(function(x){return x.id===id});if(c)c["r"+w]={v:v,at:nowHM()}});}
+  else if(act==="del-unit"){mutateDoc("settings/main","settings",function(s){s.units=s.units.filter(function(u){return u.id!==id})})}
+  else if(act==="filter"){S.filter=id;renderDeadlines()}
+  else if(act==="add-item"){openItem(null)}
+  else if(act==="edit"){openItem(S.items.find(function(i){return i.id===id}))}
+  else if(act==="close-ov"){closeItem()}
+  else if(act==="del-item"){
+    if(!delArmed){delArmed=true;b.textContent="Click again to delete";return}
+    var gone=S.items.find(function(i){return i.id===S.editing});delItem(S.editing);closeItem();
+    if(gone)toast("Deleted "+gone.name+".",function(){putItem(gone.id,gone)});
+  }
+  else if(act==="renew"){
+    var it=S.items.find(function(i){return i.id===id});if(!it)return;var before=clone(it),t=todayStr(),cyc=+it.cycle||0,n=clone(it);
+    n.lastDone=t;n.example=false;
+    if(cyc){var fromDue=(it.cat==="permit"||it.cat==="cert"||it.cat==="labor")&&it.due&&daysUntil(it.due)>=0;n.due=addMonths(fromDue?it.due:t,cyc)}else n.done=true;
+    putItem(id,n);toast(cyc?it.name+": next due "+fmtDate(n.due)+".":it.name+" marked done.",function(){putItem(id,before)});
+  }
+  else if(act==="starter"){
+    STARTER.forEach(function(s){putItem(uid(),{name:s[0],cat:s[1],cycle:s[2],agency:s[3],notes:s[4],due:"",lastDone:"",example:false})});
+    toast("Added "+STARTER.length+" deadlines. Open each to set its date.");
+  }
+  else if(act==="export-cal"){exportCal()}
+  else if(act==="export-logs"){exportLogs()}
+});
+
+/* ---------- exports ---------- */
+function csvCell(v){v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function csv(rows){return rows.map(function(r){return r.map(csvCell).join(",")}).join("\r\n")+"\r\n"}
+function save(name,data){
+  if(!dl)return;
+  dl.save({filename:name,data:data}).then(function(){toast("Saved "+name+".")}).catch(function(e){if(e&&e.code==="declined")return;toast(e&&e.code==="rate_limited"?"A save is already waiting for you.":"Couldn't save the file here.")});
+}
+function mdy(s){var p=s.split("-");return p[1]+"/"+p[2]+"/"+p[0]}
+function exportCal(){
+  var rows=[["Subject","Start Date","All Day Event","Description"]];
+  S.items.forEach(function(it){if(!it.due||it.done)return;
+    rows.push([it.name+" due",mdy(it.due),"True",[it.agency,it.notes].filter(Boolean).join(". ")]);
+    var pre=parseYmd(it.due);pre.setDate(pre.getDate()-30);if(pre>new Date())rows.push(["Reminder: "+it.name+" due in 30 days",mdy(ymd(pre)),"True",""]);
+  });
+  if(rows.length<2){toast("Set due dates first, then export.");return}
+  save("line-check-deadlines.csv",csv(rows));
+}
+function exportLogs(){
+  var collect=S.mode==="db"?db.collection("days").orderBy("date","desc").limit(120).get().then(function(s){return s.docs.map(function(d){return d.data()})})
+    :Promise.resolve(LS.keys().filter(function(k){return k.indexOf("day:")===0}).map(function(k){return LS.get(k,null)}).filter(Boolean));
+  collect.then(function(days){
+    days.sort(function(a,b){return a.date<b.date?-1:1});
+    var rows=[["Date","Time","Type","Check","Reading","Unit","Result","Initials","Corrective action"]];
+    days.forEach(function(d){
+      (d.temps||[]).slice().sort(function(a,b){return a.at<b.at?-1:1}).forEach(function(t){rows.push([d.date,t.at,"Temperature",t.what,t.value,t.unit,t.ok?"Pass":"Out of range",t.by,t.action])});
+      (d.cooling||[]).forEach(function(c){rows.push([d.date,c.start,"Cooling",c.food,"start "+c.t0+(c.r2?" / 2h "+c.r2.v+" at "+c.r2.at:"")+(c.r6?" / 6h "+c.r6.v+" at "+c.r6.at:""),"°F",c.r6?(c.r6.v<=41&&c.r2&&c.r2.v<=70?"Pass":"Fail"):"Incomplete",c.by,""])});
+    });
+    if(rows.length<2){toast("No log entries to export yet.");return}
+    save("line-check-logs-"+todayStr()+".csv",csv(rows));
+  }).catch(showErr);
+}
+
+/* ---------- boot ---------- */
+var start=(location.hash||"").slice(1);if(!start){try{start=localStorage.getItem("linecheck-ui:tab")||""}catch(e){}}
+setTab(start||"today");
+render();
+(async function(){
+  var c=window.claude;
+  if(c&&typeof c.use==="function"){
+    try{db=await c.use("db")}catch(e){db=null}
+    c.use("downloads").then(function(d){dl=d;render()}).catch(function(){});
+  }
+  S.mode=db?"db":"local";startAll();render();
+})();
+setInterval(function(){if(S.tab==="today"&&S.day&&S.day.cooling.length)renderToday()},60000);
+})();
+</script>
