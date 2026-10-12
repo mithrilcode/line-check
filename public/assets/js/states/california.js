@@ -13,7 +13,16 @@
     id: "ca",
     name: "California",
 
+    /** Page copy. `{label}` in inspectionIntro is replaced with the priority badge. */
     text: {
+      codeName: "California Retail Food Code",
+      localityLabel: "County",
+      localityPlaceholder: "e.g. Alameda",
+      coolingNote: "Hot food must drop from 135°F to 70°F within 2 hours, then to 41°F within 6 hours total (§114002).",
+      inspectionIntro:
+        "Walk the kitchen the way a county inspector would. Items marked {label} are the risk factors that cost the most points and can close a facility.",
+      footer:
+        "Section numbers refer to the California Retail Food Code (Health & Safety Code, Division 104, Part 7). Counties and cities add their own rules and set their own permit dates and fees. Confirm anything you're unsure about with your county environmental health office. This tool helps you keep records; it isn't legal advice.",
       priorityLabel: "Major",
       priorityAllDone: "Every major risk factor is confirmed.",
       starterIntro:
@@ -140,5 +149,33 @@
       { name: "Labor law posters", category: "labor", cycleMonths: 12, agency: "Employer", notes: "Refresh each January when minimum wage and notices change." },
       { name: "IIPP & Workplace Violence Prevention Plan review", category: "labor", cycleMonths: 12, agency: "Cal/OSHA", notes: "Both written plans are required. Review and train yearly." },
     ],
+
+    /** Employee files (features/employees.js). */
+    employees: {
+      certTypes: {
+        fh: { label: "California Food Handler Card", months: 36 },
+        cfpm: { label: "Food Protection Manager", months: 60 },
+        rbs: { label: "RBS certification (alcohol)", months: 36 },
+        allergen: { label: "Allergen awareness", months: 0 },
+        other: { label: "Other certification", months: 0 },
+      },
+      /** Food handler card due within `dueDays` of hire; a valid `coveredBy` certificate exempts the employee. */
+      handler: {
+        type: "fh",
+        coveredBy: "cfpm",
+        dueDays: 30,
+        hint: "California food handler cards are due within 30 days of hire and last 3 years. A valid Food Protection Manager certificate exempts the employee. The employer pays for the training and the time.",
+      },
+      /** Responsible Beverage Service training for anyone who serves alcohol at an on-sale licensee. */
+      alcohol: { type: "rbs", label: "RBS certification needed (within 60 days of hire)", k: "warn" },
+      onboarding: [
+        { id: "i9", text: "Form I-9 completed", note: "Section 2 within 3 business days of the first day of work" },
+        { id: "w4", text: "Form W-4 and DE 4 on file", note: "Federal and California withholding" },
+        { id: "newhire", text: "New hire reported to EDD (DE 34)", note: "Within 20 days of the start date" },
+        { id: "wagenotice", text: "Wage notice given (Labor Code 2810.5)", note: "At hire" },
+        { id: "health", text: "Signed employee illness reporting agreement", note: "Symptoms and diagnoses they must report to the person in charge" },
+        { id: "policies", text: "Handbook and kitchen policies acknowledged" },
+      ],
+    },
   };
 })((window.LineCheck = window.LineCheck || {}));

@@ -1,7 +1,5 @@
 /**
  * CSV exports: deadlines in Google Calendar's import format, and the daily logs.
- * Saving a file needs the artifact `downloads` capability; the buttons stay
- * hidden where it isn't available.
  */
 (function (LC) {
   "use strict";
@@ -20,15 +18,17 @@
     return `${m}/${d}/${y}`;
   };
 
+  /** Starts a browser download. The BOM makes Excel read °F correctly. */
   function save(filename, data) {
-    if (!store.downloads) return;
-    store.downloads
-      .save({ filename, data })
-      .then(() => U.toast(`Saved ${filename}.`))
-      .catch((e) => {
-        if (e && e.code === "declined") return;
-        U.toast(e && e.code === "rate_limited" ? "A save is already waiting for you." : "Couldn't save the file here.");
-      });
+    const url = URL.createObjectURL(new Blob(["﻿", data], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    U.toast(`Downloaded ${filename}.`);
   }
 
   function exportCalendar() {
@@ -72,7 +72,7 @@
         }
         save(`line-check-logs-${U.todayStr()}.csv`, toCsv(rows));
       })
-      .catch(U.showError);
+      .catch((e) => U.toast(e.message));
   }
 
   Object.assign(LC.actions, {
@@ -80,10 +80,4 @@
     "export-logs": exportLogs,
   });
 
-  LC.features.push({
-    id: "exports",
-    render() {
-      document.querySelectorAll("[data-act^='export-']").forEach((b) => (b.hidden = !store.downloads));
-    },
-  });
 })((window.LineCheck = window.LineCheck || {}));

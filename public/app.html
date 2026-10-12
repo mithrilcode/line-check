@@ -3,36 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Line Check California</title>
-  <meta name="description" content="Food safety logs, permit renewals and inspection prep for California restaurants.">
+  <title>Line Check</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
-  <link rel="stylesheet" href="assets/css/line-check.css">
-
-  <script defer src="assets/js/states/california.js"></script>
-  <script defer src="assets/js/lib/utils.js"></script>
-  <script defer src="assets/js/lib/store.js"></script>
-  <script defer src="assets/js/features/daily-log.js"></script>
-  <script defer src="assets/js/features/deadlines.js"></script>
-  <script defer src="assets/js/features/inspection.js"></script>
-  <script defer src="assets/js/features/exports.js"></script>
-  <script defer src="assets/js/main.js"></script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/line-check.css">
+  <script defer src="/assets/js/boot.js"></script>
 </head>
-<body>
+<body class="booting">
 <div class="wrap">
+  <div id="boot-error" class="banner warn" role="alert" hidden></div>
+
   <header class="top">
     <div class="brand">
-      <span class="eyebrow">California Retail Food Code</span>
+      <span class="eyebrow" id="code-name"></span>
       <h1>Line Check</h1>
       <div class="biz">
-        <label for="bizname" class="sub">Facility</label>
-        <input id="bizname" placeholder="Your restaurant name" maxlength="80">
-        <label for="county" class="sub">County</label>
-        <input id="county" class="short" placeholder="e.g. Alameda" maxlength="40">
+        <label for="bizname" class="sub">Restaurant</label>
+        <input id="bizname" maxlength="100">
+        <label for="county" class="sub" id="locality-label">County</label>
+        <input id="county" class="short" maxlength="60">
       </div>
     </div>
-    <span id="modepill" class="modepill">Connecting…</span>
+    <div class="account">
+      <span id="modepill" class="modepill">All changes saved</span>
+      <span class="sub" id="user-name"></span>
+      <button class="btn small" data-act="logout">Log out</button>
+    </div>
   </header>
 
   <section class="strip" aria-label="Status summary">
@@ -46,6 +44,7 @@
     <button role="tab" data-tab="today" aria-selected="true">Today's log</button>
     <button role="tab" data-tab="deadlines" aria-selected="false">Permits &amp; renewals</button>
     <button role="tab" data-tab="inspection" aria-selected="false">Inspection prep</button>
+    <button role="tab" data-tab="staff" aria-selected="false" hidden>Employees</button>
     <button role="tab" data-tab="reference" aria-selected="false">Quick reference</button>
   </nav>
 
@@ -56,7 +55,7 @@
       <input type="date" id="day" class="auto">
       <button class="btn small" data-act="today">Today</button>
       <span class="spacer"></span>
-      <button class="btn small" data-act="export-logs" hidden>Export logs (CSV)</button>
+      <button class="btn small" data-act="export-logs">Export logs (CSV)</button>
     </div>
     <div class="grid2">
       <div class="card">
@@ -80,7 +79,7 @@
       </div>
     </div>
     <div class="card">
-      <div><h2>Cooling log</h2><p class="sub">Hot food must drop from 135°F to 70°F within 2 hours, then to 41°F within 6 hours total (§114002).</p></div>
+      <div><h2>Cooling log</h2><p class="sub" id="cooling-note"></p></div>
       <form id="f-cool" class="form" autocomplete="off">
         <label class="wide">Food <input id="c-food" type="text" maxlength="60" placeholder="e.g. Chicken stock, 4 gal" required></label>
         <label>Started at <input id="c-start" type="time" required></label>
@@ -112,10 +111,9 @@
     <div class="row">
       <div class="filters" id="filters"></div>
       <span class="spacer"></span>
-      <button class="btn" data-act="export-cal" hidden>Export for Google Calendar (CSV)</button>
+      <button class="btn" data-act="export-cal">Export for Google Calendar (CSV)</button>
       <button class="btn primary" data-act="add-item">Add deadline</button>
     </div>
-    <div id="dl-banner"></div>
     <div class="dl" id="dl-list"></div>
   </section>
 
@@ -123,7 +121,7 @@
   <section class="panel" id="p-inspection" role="tabpanel" hidden>
     <div class="card">
       <div class="row"><h2>Self-inspection walkthrough</h2><span class="spacer"></span><span class="sub" id="prep-when"></span></div>
-      <p class="sub">Walk the kitchen the way a county inspector would. Items marked <span class="major">Major</span> are the risk factors that cost the most points and can close a facility.</p>
+      <p class="sub" id="inspection-intro"></p>
       <div class="meter" aria-hidden="true"><i id="prep-meter"></i></div>
       <div class="row"><b id="prep-score" class="num">0 of 0 ready</b><span class="spacer"></span><span id="prep-reset"></span></div>
       <div id="prep-open"></div>
@@ -131,78 +129,29 @@
     <div class="secgrid" id="prep-secs"></div>
   </section>
 
-  <!-- Quick reference -->
-  <section class="panel" id="p-reference" role="tabpanel" hidden>
-    <div class="ref">
-      <div class="card">
-        <h2>Temperature ladder</h2>
-        <div class="thermo">
-          <div><span class="t">165°F</span><span class="band">Poultry, stuffed foods, reheating for hot holding</span></div>
-          <div><span class="t">155°F</span><span class="band">Ground meat and fish, 15 seconds</span></div>
-          <div><span class="t">145°F</span><span class="band">Whole-muscle meat, fish, eggs cooked for immediate service</span></div>
-          <div><span class="t">135°F</span><span class="band">Hot holding minimum</span></div>
-          <div><span class="t">41–135</span><span class="band danger-zone">Danger zone. Limit time here.</span></div>
-          <div><span class="t">41°F</span><span class="band">Cold holding maximum</span></div>
-          <div><span class="t">32°F</span><span class="band">Ice-point check for thermometers (±2°F)</span></div>
-        </div>
-        <p class="sub">§113996, §114004, §114016</p>
-      </div>
-      <div class="card">
-        <h2>Cooling &amp; time</h2>
-        <dl>
-          <dt>2 h</dt><dd>135°F down to 70°F</dd>
-          <dt>6 h</dt><dd>Down to 41°F, counted from the start</dd>
-          <dt>2 h</dt><dd>Reheat to 165°F for hot holding</dd>
-          <dt>4 h</dt><dd>Time as a public health control: mark the discard time, toss at 4 hours. Needs written procedures (§114000).</dd>
-        </dl>
-        <h3>If a cooling check fails</h3>
-        <p class="prose">Missed 70°F in 2 hours: reheat to 165°F and restart cooling, or discard. Missed 41°F at 6 hours: discard.</p>
-      </div>
-      <div class="card">
-        <h2>Sanitizer &amp; water</h2>
-        <dl>
-          <dt>100 ppm</dt><dd>Chlorine, 30 seconds contact</dd>
-          <dt>200 ppm</dt><dd>Quaternary ammonium, or the label's concentration</dd>
-          <dt>25 ppm</dt><dd>Iodine, 1 minute contact</dd>
-          <dt>180°F</dt><dd>High-temp dish machine final rinse at the manifold</dd>
-          <dt>100°F</dt><dd>Minimum water temperature at handwash sinks</dd>
-        </dl>
-        <p class="sub">§114099.6, §113953. Keep test strips for the sanitizer you use.</p>
-      </div>
-      <div class="card">
-        <h2>Exclude or restrict staff</h2>
-        <ul>
-          <li>Exclude anyone with vomiting or diarrhea until 24 hours symptom-free</li>
-          <li>Exclude for jaundice, or a diagnosis of norovirus, hepatitis A, Shigella, Shiga toxin E. coli, Salmonella Typhi or non-typhoidal Salmonella</li>
-          <li>Restrict sore throat with fever, and cover infected cuts or burns on hands</li>
-          <li>Call your county environmental health office when two or more staff have the same diagnosed illness</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h2>What can close you</h2>
-        <p class="prose">An imminent health hazard lets the inspector suspend your permit on the spot. Stop operating and call your county yourself if you have:</p>
-        <ul>
-          <li>No hot water, or no potable water</li>
-          <li>Sewage backing up</li>
-          <li>A vermin infestation</li>
-          <li>A power outage long enough to lose refrigeration</li>
-          <li>Fire or flood damage</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h2>Agencies</h2>
-        <ul>
-          <li><b>Health permit &amp; inspections:</b> your county environmental health department (Berkeley, Long Beach, Pasadena and Vernon run their own). <a href="https://www.ccdeh.org/" target="_blank" rel="noopener">CCDEH directory</a></li>
-          <li><b>Liquor license:</b> <a href="https://www.abc.ca.gov/" target="_blank" rel="noopener">Dept. of Alcoholic Beverage Control</a></li>
-          <li><b>Seller's permit &amp; sales tax:</b> <a href="https://www.cdtfa.ca.gov/" target="_blank" rel="noopener">CDTFA</a></li>
-          <li><b>Workplace safety plans:</b> <a href="https://www.dir.ca.gov/dosh/" target="_blank" rel="noopener">Cal/OSHA</a></li>
-          <li><b>Hood, suppression, extinguishers:</b> your city or county fire marshal</li>
-        </ul>
-      </div>
+  <!-- Employees (owners and managers) -->
+  <section class="panel" id="p-staff" role="tabpanel" hidden>
+    <div id="staff-locked" class="empty" hidden>
+      <b>Employee files are for managers.</b>
+      <span>Only owners and managers can open them.</span>
     </div>
+    <div id="staff-list-view" class="panel">
+      <div class="row">
+        <input id="emp-q" class="search" type="search" placeholder="Search by name or position" aria-label="Search employees">
+        <div class="filters" id="emp-filters"></div>
+        <span class="spacer"></span>
+        <button class="btn primary" data-act="emp-new">Add employee</button>
+      </div>
+      <p class="sub">Only owners and managers can see employee files.</p>
+      <div class="empgrid" id="emp-list"></div>
+    </div>
+    <div id="staff-file-view" class="panel" hidden></div>
   </section>
 
-  <footer>Section numbers refer to the California Retail Food Code (Health &amp; Safety Code, Division 104, Part 7). Counties and cities add their own rules and set their own permit dates and fees. Confirm anything you're unsure about with your county environmental health office. This tool helps you keep records; it isn't legal advice.</footer>
+  <!-- Quick reference (loaded from /partials/reference-<state>.html) -->
+  <section class="panel" id="p-reference" role="tabpanel" hidden></section>
+
+  <footer id="footer-text"></footer>
 </div>
 
 <!-- Deadline dialog -->
@@ -234,6 +183,28 @@
       <button class="btn" type="button" data-act="close-ov">Cancel</button>
       <span class="spacer"></span>
       <button class="btn danger" type="button" id="i-del" data-act="del-item">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Employee profile dialog -->
+<div class="overlay" id="ov-emp" hidden>
+  <form class="dialog" id="f-emp" autocomplete="off">
+    <h2 id="ove-title">Add employee</h2>
+    <div class="form">
+      <label class="wide">Full name <input id="e-name" type="text" maxlength="80" required></label>
+      <label>Position <input id="e-role" type="text" maxlength="60" placeholder="e.g. Line cook"></label>
+      <label>Hire date <input id="e-hire" type="date"></label>
+      <label>Phone <input id="e-phone" type="text" maxlength="30"></label>
+      <label>Email <input id="e-email" type="text" maxlength="120"></label>
+      <label class="wide">Emergency contact <input id="e-emerg" type="text" maxlength="120" placeholder="Name, relationship, phone"></label>
+      <label class="wide check inline"><input id="e-alc" type="checkbox"><span>Serves or sells alcohol</span></label>
+      <label>Last day (former employees) <input id="e-end" type="date"></label>
+      <label class="wide">Notes <textarea id="e-notes" maxlength="1000"></textarea></label>
+    </div>
+    <div class="row">
+      <button class="btn primary" type="submit">Save</button>
+      <button class="btn" type="button" data-act="emp-close">Cancel</button>
     </div>
   </form>
 </div>

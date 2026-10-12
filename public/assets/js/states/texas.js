@@ -13,7 +13,16 @@
     id: "tx",
     name: "Texas",
 
+    /** Page copy. `{label}` in inspectionIntro is replaced with the priority badge. */
     text: {
+      codeName: "Texas Food Establishment Rules",
+      localityLabel: "City / county",
+      localityPlaceholder: "e.g. Travis",
+      coolingNote: "Hot food must drop from 135°F to 70°F within 2 hours, then to 41°F within 6 hours total.",
+      inspectionIntro:
+        "Walk the kitchen the way a health inspector would. Items marked {label} carry the heaviest demerits on a Texas inspection report and can lead to a closure.",
+      footer:
+        "Limits come from the Texas Food Establishment Rules (25 TAC Chapter 228), which most city and county health departments adopt and sometimes add to. Your local health department sets permit terms, fees and inspection scoring. Confirm anything you're unsure about with them. This tool helps you keep records; it isn't legal or tax advice.",
       priorityLabel: "Priority",
       priorityAllDone: "Every priority item is confirmed.",
       starterIntro:

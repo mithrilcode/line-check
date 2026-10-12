@@ -60,7 +60,7 @@
       .join(" · ");
     return `<div class="item ${status.k}"><span class="bar"></span>
       <div class="min0">
-        <div class="row tight"><span class="name">${esc(item.name)}</span>${item.example ? '<span class="chip ex">Example</span>' : ""}</div>
+        <div class="row tight"><span class="name">${esc(item.name)}</span></div>
         <div class="meta">${meta}</div>
         ${item.notes ? `<div class="meta note">${esc(item.notes)}</div>` : ""}
       </div>
@@ -82,9 +82,6 @@
       return;
     }
 
-    $("dl-banner").innerHTML = S.items.some((i) => i.example)
-      ? '<div class="banner">Rows tagged <span class="chip ex">Example</span> have placeholder dates. Open each one and enter the date from your own permit, certificate or service receipt. Delete the ones that don’t apply to you.</div>'
-      : "";
 
     const starter = S.items.length
       ? ""
@@ -138,8 +135,7 @@
 
   $("f-item").addEventListener("submit", (ev) => {
     ev.preventDefault();
-    const id = editingId || U.uid();
-    const previous = S.items.find((i) => i.id === id) || {};
+    const previous = S.items.find((i) => i.id === editingId) || {};
     const due = $("i-due").value;
     const data = {
       name: $("i-name").value.trim(),
@@ -149,10 +145,9 @@
       due,
       lastDone: $("i-last").value,
       notes: $("i-notes").value.trim(),
-      example: false,
       done: Boolean(previous.done && previous.due === due),
     };
-    store.putItem(id, data);
+    store.saveDeadline(editingId, data);
     closeDialog();
     U.toast(`Saved ${data.name}.`);
   });
@@ -176,9 +171,9 @@
         return;
       }
       const removed = S.items.find((i) => i.id === editingId);
-      store.deleteItem(editingId);
+      store.deleteDeadline(editingId);
       closeDialog();
-      if (removed) U.toast(`Deleted ${removed.name}.`, () => store.putItem(removed.id, removed));
+      if (removed) U.toast(`Deleted ${removed.name}.`, () => store.saveDeadline(null, removed));
     },
 
     renew(el) {
@@ -189,31 +184,21 @@
       const months = +item.cycle || 0;
       const today = U.todayStr();
       next.lastDone = today;
-      next.example = false;
       if (months) {
         const fromDue = RENEW_FROM_DUE.includes(item.cat) && item.due && U.daysUntil(item.due) >= 0;
         next.due = U.addMonths(fromDue ? item.due : today, months);
       } else {
         next.done = true;
       }
-      store.putItem(item.id, next);
+      store.saveDeadline(item.id, next);
       U.toast(months ? `${item.name}: next due ${U.fmtDate(next.due)}.` : `${item.name} marked done.`, () =>
-        store.putItem(item.id, before)
+        store.saveDeadline(item.id, before)
       );
     },
 
-    starter() {
-      LC.config.starter.forEach((s) =>
-        store.putItem(U.uid(), {
-          name: s.name,
-          cat: s.category,
-          cycle: s.cycleMonths,
-          agency: s.agency,
-          notes: s.notes,
-          due: "",
-          lastDone: "",
-          example: false,
-        })
+    async starter() {
+      await store.addDeadlines(
+        LC.config.starter.map((s) => ({ name: s.name, cat: s.category, cycle: s.cycleMonths, agency: s.agency, notes: s.notes }))
       );
       U.toast(`Added ${LC.config.starter.length} deadlines. Open each to set its date.`);
     },

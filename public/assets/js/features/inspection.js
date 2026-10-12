@@ -68,14 +68,7 @@
 
   Object.assign(LC.actions, {
     prep(el) {
-      const id = el.dataset.id;
-      const on = el.checked;
-      store.mutatePrep((p) => {
-        p.ticks = p.ticks || {};
-        if (on) p.ticks[id] = U.todayStr();
-        else delete p.ticks[id];
-        if (!p.started) p.started = U.todayStr();
-      });
+      store.setInspectionTick(el.dataset.id, el.checked);
     },
     "reset-arm"() {
       resetArmed = true;
@@ -85,12 +78,9 @@
       resetArmed = false;
       render();
     },
-    "reset-prep"() {
+    async "reset-prep"() {
       resetArmed = false;
-      store.mutatePrep((p) => {
-        p.ticks = {};
-        p.started = U.todayStr();
-      });
+      await store.resetInspection();
       U.toast("New walkthrough started.");
     },
   });

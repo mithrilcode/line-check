@@ -3,18 +3,19 @@
  * (write-ups, training, illness reports…) and attached documents.
  *
  * Optional module. It only runs when the state config defines `employees`
- * and the page includes the Employees panel. In an artifact the `employees`
- * collection is readable and writable by Editors only (see README).
+ * and the page includes the Employees panel. Only owners and managers can
+ * open employee files; the API enforces the same rule.
  */
 (function (LC) {
   "use strict";
   const cfg = LC.config.employees;
-  if (!cfg || !document.getElementById("p-staff")) return;
+  if (!cfg || !LC.state.canManage || !document.getElementById("p-staff")) return;
 
   const U = LC.utils;
   const { $, esc } = U;
   const S = LC.state;
   const store = LC.store;
+  const api = LC.api;
 
   const RECORD_TYPES = {
     verbal: { label: "Verbal warning", k: "warn" },
@@ -28,80 +29,50 @@
     commend: { label: "Commendation", k: "ok" },
     note: { label: "Note", k: "mute" },
   };
-  const LISTS = { cert: "certs", rec: "records", doc: "docs" };
+  /** Delete-button key prefix → API path segment. */
+  const CHILD_PATHS = { cert: "certs", rec: "records", doc: "documents" };
 
   const view = { list: [], loaded: false, selected: null, filter: "active", query: "", armed: null, editing: null };
   let lastFileKey = "";
 
   /* ---------- Persistence ---------- */
 
-  function onWriteError(e) {
-    if (e && e.code === "invalid_argument") {
-      store.canManage = false;
-      LC.render();
-      U.toast("Only managers with Editor access can change employee files.");
-      return;
-    }
-    U.showError(e);
+  async function load() {
+    view.list = await api.get("/employees");
+    view.loaded = true;
   }
 
-  function start() {
-    if (S.mode === "db" && store.canManage === false) {
+  async function start() {
+    if (!S.canManage) {
       view.loaded = true;
       return;
     }
-    store.watchCollection("employees", (list) => {
-      view.list = list;
-      view.loaded = true;
-      LC.render();
-    });
+    await store.attempt(load);
+    LC.render();
   }
+
+  const refresh = () => (S.canManage ? load() : Promise.resolve());
 
   const getEmployee = (id) => view.list.find((e) => e.id === id) || null;
 
-  function saveEmployee(id, data) {
-    view.list = store.upsert(view.list, id, data);
-    LC.render();
-    return store.putDoc("employees", id, data, onWriteError);
+  /** Runs an API call that answers with one employee, and swaps it into the list. */
+  async function apply(call) {
+    const employee = await store.attempt(call);
+    if (employee) {
+      view.list = view.list.filter((e) => e.id !== employee.id).concat([employee]);
+      lastFileKey = "";
+      LC.render();
+    }
+    return employee;
   }
 
-  function updateEmployee(id, fn) {
-    const current = getEmployee(id);
-    if (!current) return Promise.resolve();
-    const next = U.clone(current);
-    fn(next);
-    return saveEmployee(id, next);
-  }
-
-  function deleteEmployee(id) {
-    view.list = view.list.filter((e) => e.id !== id);
-    return store.deleteDoc("employees", id, onWriteError);
-  }
-
-  function dropFile(fileId) {
-    if (store.assets && fileId) store.assets.delete(fileId).catch(() => {});
-  }
-
+  /** Uploads the file chosen in an <input type=file>, if any. Resolves { fileId } or {}. */
   async function uploadFrom(inputId) {
     const input = $(inputId);
     const file = input && input.files && input.files[0];
-    if (!file) return null;
-    if (!store.assets) {
-      U.toast("File attachments aren’t available here.");
-      throw new Error("assets unavailable");
-    }
-    try {
-      const result = await store.assets.upload(file);
-      return { fileId: result.id, fileUrl: result.url, fileName: file.name };
-    } catch (e) {
-      const messages = {
-        too_large: "That file is over 20 MB. Try a smaller photo or PDF.",
-        unsupported_type: "Attach a photo or a PDF.",
-        quota_or_state: "File storage is full. Delete old documents first.",
-      };
-      U.toast(messages[e && e.code] || "Couldn’t upload the file. Try again.");
-      throw e;
-    }
+    if (!file) return {};
+    const uploaded = await api.upload(file);
+    return { fileId: uploaded.id };
   }
 
   /* ---------- Certification rules ---------- */
@@ -231,9 +202,9 @@
   /* ---------- Render: one employee's file ---------- */
 
   const fileLink = (x) =>
-    x.fileId ? `<a href="${esc(x.fileUrl || `/_blob/${x.fileId}`)}" target="_blank" rel="noopener">${esc(x.fileName || "View file")}</a>` : "";
+    x.fileId ? `<a href="/api/files/${esc(x.fileId)}" target="_blank" rel="noopener">${esc(x.fileName || "View file")}</a>` : "";
   const fileInput = (id) =>
-    store.assets ? `<label class="wide">Attach photo or PDF (optional) <input id="${id}" type="file" accept="image/*,application/pdf"></label>` : "";
+    `<label class="wide">Attach photo or PDF (optional) <input id="${id}" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,application/pdf"></label>`;
 
   function deleteButton(key, label = "Delete") {
     const armed = view.armed === key;
@@ -359,12 +330,10 @@
           )
           .join("")}</div>`
       : '<div class="empty">No documents yet.</div>';
-    const form = store.assets
-      ? `<form id="fd-form" class="form formbox" autocomplete="off">
+    const form = `<form id="fd-form" class="form formbox" autocomplete="off">
           <label class="wide">Label <input id="fd-label" type="text" maxlength="80" placeholder="e.g. Signed I-9" required></label>
-          <label class="wide">File (photo or PDF) <input id="fd-file" type="file" accept="image/*,application/pdf" required></label>
-          <div class="wide row"><button class="btn primary" type="submit">Upload document</button></div></form>`
-      : '<p class="sub">File uploads aren’t available in this view.</p>';
+          <label class="wide">File (photo or PDF) <input id="fd-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,application/pdf" required></label>
+          <div class="wide row"><button class="btn primary" type="submit">Upload document</button></div></form>`;
     return `<div class="card"><div><h2>Documents</h2><p class="sub">Scans of the signed I-9, W-4, health agreement, ID copies and anything else.</p></div>${list}${form}</div>`;
   }
 
@@ -393,7 +362,7 @@
   }
 
   function renderFile(e) {
-    const key = [JSON.stringify(e), Boolean(store.assets), view.armed, U.todayStr()].join("|");
+    const key = [JSON.stringify(e), view.armed, U.todayStr()].join("|");
     if (key === lastFileKey) return;
     lastFileKey = key;
     const el = $("staff-file-view");
@@ -408,7 +377,7 @@
   }
 
   function render() {
-    const locked = S.mode === "db" && store.canManage === false;
+    const locked = !S.canManage;
     $("staff-locked").hidden = !locked;
     if (locked) {
       $("staff-list-view").hidden = true;
@@ -457,7 +426,7 @@
     renderList();
   });
 
-  $("f-emp").addEventListener("submit", (ev) => {
+  $("f-emp").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const fields = {
       name: $("e-name").value.trim(),
@@ -471,17 +440,17 @@
       notes: $("e-notes").value.trim(),
     };
     if (!fields.name) return;
-    if (view.editing) {
-      updateEmployee(view.editing, (x) => Object.assign(x, fields));
-      U.toast("Profile saved.");
-    } else {
-      const id = U.uid();
-      view.selected = id;
-      lastFileKey = "";
-      saveEmployee(id, { status: "active", certs: [], records: [], docs: [], onboard: {}, created: U.todayStr(), ...fields });
-      U.toast(`Created a file for ${fields.name}.`);
-    }
     closeProfile();
+    if (view.editing) {
+      if (await apply(() => api.patch(`/employees/${view.editing}`, fields))) U.toast("Profile saved.");
+    } else {
+      const created = await apply(() => api.post("/employees", fields));
+      if (created) {
+        view.selected = created.id;
+        LC.render();
+        U.toast(`Created a file for ${fields.name}.`);
+      }
+    }
   });
 
   /* ---------- File forms (rendered dynamically, so delegated) ---------- */
@@ -492,49 +461,44 @@
       const issued = $("fc-iss").value;
       let expires = $("fc-exp").value;
       if (!expires && issued && certType(type).months) expires = U.addMonths(issued, certType(type).months);
-      const file = await uploadFrom("fc-file");
       const cert = {
-        id: U.uid(),
         type,
         title: $("fc-title").value.trim(),
         number: $("fc-num").value.trim(),
         provider: $("fc-prov").value.trim(),
         issued,
         expires,
-        ...(file || {}),
+        ...(await uploadFrom("fc-file")),
       };
-      form.reset();
-      lastFileKey = "";
-      await updateEmployee(e.id, (x) => (x.certs = (x.certs || []).concat([cert])));
-      U.toast(`Added ${certLabel(cert)}${expires ? `, expires ${U.fmtDate(expires)}` : ""}.`);
+      if (await apply(() => api.post(`/employees/${e.id}/certs`, cert))) {
+        form.reset();
+        U.toast(`Added ${certLabel(cert)}${expires ? `, expires ${U.fmtDate(expires)}` : ""}.`);
+      }
     },
 
     async "fr-form"(form, e) {
-      const file = await uploadFrom("fr-file");
       const record = {
-        id: U.uid(),
         date: $("fr-date").value,
         type: $("fr-type").value,
         by: $("fr-by").value.trim(),
         summary: $("fr-sum").value.trim(),
         details: $("fr-det").value.trim(),
-        ack: $("fr-ack").checked ? U.todayStr() : "",
-        ...(file || {}),
+        ack: $("fr-ack").checked,
+        ...(await uploadFrom("fr-file")),
       };
-      form.reset();
-      lastFileKey = "";
-      await updateEmployee(e.id, (x) => (x.records = (x.records || []).concat([record])));
-      U.toast("Record added.");
+      if (await apply(() => api.post(`/employees/${e.id}/records`, record))) {
+        form.reset();
+        U.toast("Record added.");
+      }
     },
 
     async "fd-form"(form, e) {
+      const label = $("fd-label").value.trim();
       const file = await uploadFrom("fd-file");
-      if (!file) return;
-      const doc = { id: U.uid(), label: $("fd-label").value.trim(), date: U.todayStr(), ...file };
-      form.reset();
-      lastFileKey = "";
-      await updateEmployee(e.id, (x) => (x.docs = (x.docs || []).concat([doc])));
-      U.toast(`Uploaded ${doc.label}.`);
+      if (await apply(() => api.post(`/employees/${e.id}/documents`, { label, ...file }))) {
+        form.reset();
+        U.toast(`Uploaded ${label}.`);
+      }
     },
   };
 
@@ -551,8 +515,8 @@
     button.textContent = "Saving…";
     try {
       await handler(form, e);
-    } catch {
-      /* uploadFrom already told the user what went wrong */
+    } catch (err) {
+      U.toast(err.message || "Couldn't save. Try again.");
     } finally {
       button.disabled = false;
       button.textContent = label;
@@ -592,43 +556,30 @@
       if (e) openProfile(e);
     },
 
-    "emp-status"() {
+    async "emp-status"() {
       const e = selected();
       if (!e) return;
       const toFormer = e.status !== "former";
-      updateEmployee(e.id, (x) => {
-        if (toFormer) {
-          x.status = "former";
-          if (!x.endDate) x.endDate = U.todayStr();
-        } else x.status = "active";
-      });
-      U.toast(toFormer ? `${e.name} moved to former employees.` : `${e.name} is active again.`);
+      const fields = toFormer ? { status: "former", endDate: e.endDate || U.todayStr() } : { status: "active" };
+      if (await apply(() => api.patch(`/employees/${e.id}`, fields))) {
+        U.toast(toFormer ? `${e.name} moved to former employees.` : `${e.name} is active again.`);
+      }
     },
 
     "emp-onb"(el) {
       const e = selected();
       if (!e) return;
-      const id = el.dataset.id;
-      const on = el.checked;
-      updateEmployee(e.id, (x) => {
-        x.onboard = x.onboard || {};
-        if (on) x.onboard[id] = U.todayStr();
-        else delete x.onboard[id];
-      });
+      apply(() => api.put(`/employees/${e.id}/onboarding/${encodeURIComponent(el.dataset.id)}`, { done: el.checked, date: U.todayStr() }));
     },
 
     "emp-ack"(el) {
       const e = selected();
       if (!e) return;
-      const id = el.dataset.id;
-      updateEmployee(e.id, (x) => {
-        const record = (x.records || []).find((r) => r.id === id);
-        if (record) record.ack = U.todayStr();
-      });
+      apply(() => api.patch(`/employees/${e.id}/records/${el.dataset.id}`, { ack: true }));
     },
 
     /** Two-step delete: the first click arms the button, the second deletes. */
-    "emp-del"(el) {
+    async "emp-del"(el) {
       const e = selected();
       if (!e) return;
       const key = el.dataset.key;
@@ -641,21 +592,17 @@
       view.armed = null;
       const [kind, id] = key.split(":");
       if (kind === "emp") {
-        [...(e.certs || []), ...(e.records || []), ...(e.docs || [])].forEach((x) => dropFile(x.fileId));
-        deleteEmployee(e.id);
+        if ((await store.attempt(() => api.del(`/employees/${e.id}`))) === undefined) return;
+        view.list = view.list.filter((x) => x.id !== e.id);
         view.selected = null;
         LC.render();
         U.toast(`Deleted ${e.name}’s file.`);
         return;
       }
-      const listName = LISTS[kind];
-      const entry = (e[listName] || []).find((x) => x.id === id);
-      if (entry) dropFile(entry.fileId);
-      lastFileKey = "";
-      updateEmployee(e.id, (x) => (x[listName] = (x[listName] || []).filter((y) => y.id !== id)));
+      apply(() => api.del(`/employees/${e.id}/${CHILD_PATHS[kind]}/${id}`));
     },
   });
 
   LC.deadlineSources.push(derivedDeadlines);
-  LC.features.push({ id: "staff", start, render });
+  LC.features.push({ id: "staff", start, refresh, render });
 })((window.LineCheck = window.LineCheck || {}));

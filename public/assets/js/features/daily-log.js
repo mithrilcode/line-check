@@ -22,7 +22,7 @@
   function resolveCheck(key) {
     if (!key) return null;
     if (key.startsWith("u:")) {
-      const unit = S.settings.units.find((u) => `u:${u.id}` === key);
+      const unit = S.units.find((u) => `u:${u.id}` === key);
       if (!unit) return null;
       const spec = HOLDING[unit.kind];
       return { label: unit.name, unit: "°F", spec, rule: spec.rule };
@@ -36,7 +36,7 @@
   let lastUnitsKey = "";
 
   function renderUnitOptions() {
-    const key = JSON.stringify(S.settings.units);
+    const key = JSON.stringify(S.units);
     if (key === lastUnitsKey) return;
     lastUnitsKey = key;
 
@@ -47,7 +47,7 @@
 
     select.innerHTML =
       '<option value="">Choose…</option>' +
-      `<optgroup label="Holding units">${S.settings.units
+      `<optgroup label="Holding units">${S.units
         .map((u) => `<option value="u:${esc(u.id)}">${esc(u.name)}</option>`)
         .join("")}</optgroup>` +
       Object.keys(groups)
@@ -61,7 +61,7 @@
     select.value = previous;
     updateHint();
 
-    $("units").innerHTML = `<div class="checks">${S.settings.units
+    $("units").innerHTML = `<div class="checks">${S.units
       .map(
         (u) => `<div class="list-row"><span>${esc(u.name)}</span>
           <span class="chip mute">${esc(HOLDING[u.kind].rule.split(" (")[0])}</span>
@@ -210,7 +210,6 @@
     const value = parseFloat($("t-val").value);
     const ok = inRange(check.spec, value);
     const entry = {
-      id: U.uid(),
       at: $("t-at").value,
       what: check.label,
       key: $("t-what").value,
@@ -220,7 +219,7 @@
       by: $("t-by").value.trim().toUpperCase(),
       action: ok ? "" : $("t-act").value.trim(),
     };
-    store.mutateDay((d) => d.temps.push(entry));
+    store.addReading(entry);
     $("t-val").value = "";
     $("t-act").value = "";
     $("t-at").value = U.nowHM();
@@ -234,15 +233,12 @@
   $("f-cool").addEventListener("submit", (ev) => {
     ev.preventDefault();
     const batch = {
-      id: U.uid(),
       food: $("c-food").value.trim(),
       start: $("c-start").value,
       t0: parseFloat($("c-t0").value),
       by: $("c-by").value.trim().toUpperCase(),
-      r2: null,
-      r6: null,
     };
-    store.mutateDay((d) => d.cooling.push(batch));
+    store.addCooling(batch);
     $("c-food").value = "";
     $("c-t0").value = "";
     $("c-start").value = U.nowHM();
@@ -256,7 +252,7 @@
     const name = $("u-name").value.trim();
     if (!name) return;
     const kind = $("u-kind").value;
-    store.mutateSettings((s) => s.units.push({ id: U.uid(), name, kind }));
+    store.addUnit(name, kind);
     $("u-name").value = "";
   });
 
@@ -270,11 +266,8 @@
     nameTimer = setTimeout(() => {
       const name = $("bizname").value.trim();
       const county = $("county").value.trim();
-      if (name === (S.settings.name || "") && county === (S.settings.county || "")) return;
-      store.mutateSettings((s) => {
-        s.name = name;
-        s.county = county;
-      });
+      if (!name || (name === S.restaurant.name && county === S.restaurant.county)) return;
+      store.updateRestaurant({ name, county });
     }, 700);
   }
   $("bizname").addEventListener("input", saveFacility);
@@ -286,31 +279,19 @@
     today: () => store.setDate(U.todayStr()),
 
     tick(el) {
-      const at = el.checked ? U.nowHM() : null;
-      const id = el.dataset.id;
-      store.mutateDay((d) => {
-        d.checks = d.checks || {};
-        if (at) d.checks[id] = at;
-        else delete d.checks[id];
-      });
+      store.setShiftCheck(el.dataset.id, el.checked);
     },
 
     "del-temp"(el) {
-      const id = el.dataset.id;
-      const removed = S.day.temps.find((t) => t.id === id);
-      store.mutateDay((d) => {
-        d.temps = d.temps.filter((t) => t.id !== id);
-      });
-      U.toast("Reading removed.", () => store.mutateDay((d) => d.temps.push(removed)));
+      const removed = S.day.temps.find((t) => t.id === el.dataset.id);
+      store.deleteReading(el.dataset.id);
+      if (removed) U.toast("Reading removed.", () => store.addReading(removed));
     },
 
     "del-cool"(el) {
-      const id = el.dataset.id;
-      const removed = S.day.cooling.find((c) => c.id === id);
-      store.mutateDay((d) => {
-        d.cooling = d.cooling.filter((c) => c.id !== id);
-      });
-      U.toast("Batch removed.", () => store.mutateDay((d) => d.cooling.push(removed)));
+      const removed = S.day.cooling.find((c) => c.id === el.dataset.id);
+      store.deleteCooling(el.dataset.id);
+      if (removed) U.toast("Batch removed.", () => store.addCooling(removed));
     },
 
     "cool-read"(el) {
@@ -322,17 +303,11 @@
         if (input) input.focus();
         return;
       }
-      store.mutateDay((d) => {
-        const batch = d.cooling.find((x) => x.id === id);
-        if (batch) batch[`r${which}`] = { v: value, at: U.nowHM() };
-      });
+      store.logCooling(id, Number(which), value);
     },
 
     "del-unit"(el) {
-      const id = el.dataset.id;
-      store.mutateSettings((s) => {
-        s.units = s.units.filter((u) => u.id !== id);
-      });
+      store.deleteUnit(el.dataset.id);
     },
   });
 
