@@ -12,6 +12,10 @@ Supported states: **California** (California Retail Food Code) and **Texas** (Te
 - **Inspection prep:** a walkthrough modeled on how inspectors score, with the highest-risk items flagged.
 - **Employee files** (owners and managers): certifications, onboarding paperwork, write-ups, training and illness records, with photo or PDF attachments. Expiring cards feed the renewals tracker.
 - **Quick reference:** temperatures, sanitizer strengths, illness exclusions, closure triggers and agency links.
+- **Team:** owners invite managers and staff by email; managers invite staff. Invitees create an account (or use their existing one) from the link. Owners change roles and remove people. Anyone on more than one restaurant switches between them from the header.
+- **Password reset:** "Forgot your password?" emails a single-use link that expires in an hour. Resetting signs out every other session.
+- **Deadline reminders:** a morning email to owners and managers listing anything due in 30 days, 7 days, tomorrow or today, and weekly while overdue, covering deadlines and employee certificates. Each person can turn it off under Settings.
+- **Calendar feed:** a private `.ics` link that Google Calendar, Outlook and Apple Calendar can subscribe to, with every deadline and certificate expiry.
 
 ## Getting started
 
@@ -39,6 +43,10 @@ Set these environment variables as needed:
 | `HOST` | `127.0.0.1` | Interface to listen on. Use `0.0.0.0` behind a reverse proxy or in a container. |
 | `DATA_DIR` | `./data` | Where the SQLite database (`linecheck.db`) and uploaded files (`uploads/`) live |
 | `NODE_ENV` | — | Set to `production` to mark the session cookie `Secure` (requires HTTPS) |
+| `APP_URL` | `http://localhost:<PORT>` | Public address of the site, used in emailed links and the calendar feed URL |
+| `SMTP_URL` | — | Mail server, e.g. `smtps://user:password@smtp.example.com:465`. Without it, emails are written to `DATA_DIR/outbox/` and logged instead of sent. |
+| `MAIL_FROM` | `Line Check <no-reply@localhost>` | Sender address for emails |
+| `REMINDER_HOUR` | `7` | Hour of the day (server's local time) after which the daily reminder emails go out |
 
 `data/` is git-ignored. Back it up: it holds every record and upload.
 
@@ -49,14 +57,21 @@ server/
   index.js              Entry point: opens the database, starts the HTTP server
   app.js                Express app: security headers, sessions, API routes, static files, errors
   db.js                 Opens SQLite and applies migrations
-  auth.js               Password hashing, sessions, role checks, CSRF guard, login rate limit
+  auth.js               Password hashing, sessions, role checks, CSRF guard, rate limits
+  mailer.js             Email through SMTP_URL, or to DATA_DIR/outbox when it isn't set
+  reminders.js          Daily reminder digest
   migrations/
     001_initial.sql     Database schema
+    002_team_and_notifications.sql  Invitations, password resets, reminders, calendar feed
   lib/
     validate.js         Request validation helpers and HttpError
     mappers.js          Database rows → API JSON
+    upcoming.js         Dated items (deadlines, certificate expiries) for reminders and the calendar
   routes/
-    auth.js             Sign-up, log-in, log-out, current user
+    auth.js             Sign-up, log-in, log-out, current user, restaurant switch, password reset
+    account.js          Your profile, reminder preference, password change
+    team.js             Team members, invitations, accepting an invite
+    calendar.js         Calendar feed URL and the .ics feed
     restaurant.js       Restaurant profile
     daily-log.js        Holding units, readings, shift checks, cooling, log export
     deadlines.js        Permits & renewals
@@ -67,6 +82,9 @@ public/
   index.html            Landing page
   signup.html           Profile creation
   login.html            Log in
+  forgot.html           Ask for a password reset link
+  reset.html            Choose a new password
+  invite.html           Accept a team invitation
   app.html              Dashboard (requires a session)
   partials/             Per-state Quick reference panels
   assets/css/           Stylesheet (light and dark themes)
@@ -74,11 +92,13 @@ public/
     boot.js             Dashboard loader: checks the session, loads the state config and app scripts
     states/             Per-state rules: limits, checklists, starter deadlines, employee-file rules, page text
     lib/                utils.js, api.js (fetch client), store.js (state and operations)
-    features/           daily-log, deadlines, inspection, employees, exports
+    features/           daily-log, deadlines, inspection, employees, exports, settings
     main.js             Summary strip, tabs, account menu, action dispatch, polling
-    pages/              Landing, sign-up and log-in scripts
+    pages/              Scripts for the public pages
 test/
-  api.test.js           End-to-end API tests (node:test)
+  helpers.js            Starts the app on a throwaway database with a capturing mailer
+  api.test.js           Core API tests (node:test)
+  team-and-notifications.test.js  Invites, roles, password reset, settings, calendar, reminders
 ```
 
 ## Database
@@ -87,8 +107,8 @@ SQLite, one file. Every business table carries a `restaurant_id`, and every quer
 
 | Table | Holds |
 | --- | --- |
-| `users` | Accounts (email, scrypt password hash, name, role title) |
-| `restaurants` | Restaurant profile and state (`CA` or `TX`) |
+| `users` | Accounts (email, scrypt password hash, name, role title, reminder preference) |
+| `restaurants` | Restaurant profile, state (`CA` or `TX`) and calendar feed token |
 | `memberships` | Which users belong to which restaurant, as `owner`, `manager` or `staff` |
 | `sessions` | Login sessions (only a SHA-256 hash of the cookie token is stored) |
 | `holding_units` | Coolers, freezers and hot wells that appear in the log |
@@ -103,6 +123,9 @@ SQLite, one file. Every business table carries a `restaurant_id`, and every quer
 | `employee_records` | Write-ups, training, illness and injury reports, reviews, notes |
 | `employee_onboarding` | Onboarding checklist items completed |
 | `employee_documents` | Labeled document uploads |
+| `invitations` | Team invitations (hashed link token, role, expiry, accepted date) |
+| `password_resets` | Single-use reset links (hashed token, expiry, used date) |
+| `reminder_runs` | One row per restaurant per day the reminder email ran, so it never sends twice |
 
 Schema changes go in a new numbered file in `server/migrations/` (for example `002_add_something.sql`). The server applies new migrations at startup and tracks the version in SQLite's `user_version`.
 
@@ -110,7 +133,9 @@ Schema changes go in a new numbered file in `server/migrations/` (for example `0
 
 - Passwords are hashed with scrypt. Sessions use an `HttpOnly`, `SameSite=Lax` cookie that lasts 30 days.
 - State-changing API calls must send `X-Requested-With: fetch`, which blocks cross-site form posts.
-- Log-in attempts are rate-limited per IP and email.
+- Log-in attempts and password reset requests are rate-limited per IP and email. The reset form gives the same answer whether or not an account exists.
+- Invitation and reset links are random 256-bit tokens; only their SHA-256 hashes are stored. Invitations expire after 7 days, reset links after 1 hour, and both work once.
+- The calendar feed URL is a secret link. Anyone who has it can read deadline names and dates, so Settings lets managers replace it.
 - Employee files and uploads are limited to owners and managers. Uploads accept photos and PDFs only, up to 20 MB, and are served with a sandboxing Content Security Policy.
 - Pages are served with a strict Content Security Policy (no inline scripts or styles).
 
@@ -120,12 +145,6 @@ Schema changes go in a new numbered file in `server/migrations/` (for example `0
 2. Add `public/partials/reference-<id>.html` for the Quick reference panel.
 3. Add the state code to the `CHECK` on `restaurants.state` in a new migration, to `v.oneOf(... ["CA", "TX"])` in `server/routes/auth.js`, and to `STATE_CONFIGS` in `public/assets/js/boot.js`.
 4. Add it as a choice on `public/signup.html`.
-
-## Not built yet
-
-- Inviting managers and staff to an existing restaurant (the `memberships` table supports it; there's no invite screen yet).
-- Password reset by email.
-- Reminder emails or calendar sync for upcoming deadlines.
 
 ## Disclaimer
 
