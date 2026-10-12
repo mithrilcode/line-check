@@ -57,10 +57,15 @@ function destroySession(db, req, res) {
   res.clearCookie(COOKIE, { path: "/" });
 }
 
+/** Ends the current session server-side without clearing the cookie (a new session is about to replace it). */
+function endSession(db, req) {
+  if (req.auth) db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(req.auth.tokenHash);
+}
+
 /** Attaches req.auth = { userId, restaurantId, role, user } when the cookie is a live session. */
 function loadSession(db) {
   const lookup = db.prepare(`
-    SELECT s.user_id, s.restaurant_id, m.role, u.name, u.email, u.title, u.phone
+    SELECT s.user_id, s.restaurant_id, m.role, u.name, u.email, u.title, u.phone, u.email_reminders
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     JOIN memberships m ON m.user_id = s.user_id AND m.restaurant_id = s.restaurant_id
@@ -71,10 +76,18 @@ function loadSession(db) {
       const row = lookup.get(hashToken(token), new Date().toISOString());
       if (row) {
         req.auth = {
+          tokenHash: hashToken(token),
           userId: row.user_id,
           restaurantId: row.restaurant_id,
           role: row.role,
-          user: { id: row.user_id, name: row.name, email: row.email, title: row.title, phone: row.phone },
+          user: {
+            id: row.user_id,
+            name: row.name,
+            email: row.email,
+            title: row.title,
+            phone: row.phone,
+            emailReminders: row.email_reminders === 1,
+          },
         };
       }
     }
@@ -125,11 +138,20 @@ function attemptLimiter({ max = 10, windowMs = 15 * 60 * 1000 } = {}) {
   };
 }
 
+/** A random URL-safe token and the SHA-256 hash stored in its place. */
+function newToken() {
+  const token = crypto.randomBytes(32).toString("base64url");
+  return { token, hash: hashToken(token) };
+}
+
 module.exports = {
+  hashToken,
+  newToken,
   hashPassword,
   verifyPassword,
   createSession,
   destroySession,
+  endSession,
   loadSession,
   requireAuth,
   requireManager,

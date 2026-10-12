@@ -28,10 +28,17 @@ const SECURITY_HEADERS = {
 
 /**
  * Builds the Express app.
- * @param {{ db: import("node:sqlite").DatabaseSync, dataDir: string, secureCookies?: boolean }} options
+ * @param {object} options
+ * @param {import("node:sqlite").DatabaseSync} options.db
+ * @param {string} options.dataDir      where uploads live
+ * @param {{ send: Function, configured: boolean }} options.mailer  see server/mailer.js
+ * @param {string} options.appUrl       public base URL used in emailed links
+ * @param {boolean} [options.secureCookies]
  */
-function createApp({ db, dataDir, secureCookies = false }) {
-  const ctx = { db, dataDir, secureCookies };
+function createApp({ db, dataDir, mailer, appUrl, secureCookies = false }) {
+  const ctx = { db, dataDir, mailer, appUrl: appUrl.replace(/\/$/, ""), secureCookies };
+  const team = require("./routes/team")(ctx);
+  const calendar = require("./routes/calendar")(ctx);
   const app = express();
 
   app.disable("x-powered-by");
@@ -47,7 +54,11 @@ function createApp({ db, dataDir, secureCookies = false }) {
   api.use(requireFetchHeader);
   api.use(express.json({ limit: "100kb" }));
   api.use("/auth", require("./routes/auth")(ctx));
+  api.use(team.invites); // public: people accepting an invite may not have an account yet
   api.use(requireAuth);
+  api.use(require("./routes/account")(ctx));
+  api.use(team.team);
+  api.use(calendar.api);
   api.use(require("./routes/restaurant")(ctx));
   api.use(require("./routes/daily-log")(ctx));
   api.use(require("./routes/deadlines")(ctx));
@@ -57,6 +68,10 @@ function createApp({ db, dataDir, secureCookies = false }) {
   api.use((req, res) => res.status(404).json({ error: "Not found." }));
   app.use("/api", api);
 
+  /* ---------- Calendar feed (public, secret URL) ---------- */
+
+  app.use(calendar.feed);
+
   /* ---------- Pages ---------- */
 
   // The dashboard needs a session; signed-in people skip the auth pages.
@@ -64,7 +79,7 @@ function createApp({ db, dataDir, secureCookies = false }) {
     if (!req.auth) return res.redirect("/login.html");
     res.sendFile(path.join(PUBLIC_DIR, "app.html"));
   });
-  app.get(["/login.html", "/signup.html"], (req, res, next) => (req.auth ? res.redirect("/app.html") : next()));
+  app.get(["/login.html", "/signup.html", "/forgot.html"], (req, res, next) => (req.auth ? res.redirect("/app.html") : next()));
 
   app.use(express.static(PUBLIC_DIR, { extensions: ["html"] }));
 

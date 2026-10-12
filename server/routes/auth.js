@@ -15,9 +15,15 @@ const DEFAULT_UNITS = [
   ["Steam table", "hot"],
 ];
 
-module.exports = function authRoutes({ db, secureCookies }) {
+const RESET_MINUTES = 60;
+
+module.exports = function authRoutes({ db, secureCookies, mailer, appUrl }) {
   const router = express.Router();
-  const limiter = auth.attemptLimiter();
+  const loginLimiter = auth.attemptLimiter();
+  const resetLimiter = auth.attemptLimiter({ max: 5, windowMs: 60 * 60 * 1000 });
+
+  const firstRestaurant = (userId) =>
+    db.prepare("SELECT restaurant_id FROM memberships WHERE user_id = ? ORDER BY created_at LIMIT 1").get(userId);
 
   /** Create a user, their restaurant and an owner membership, then log them in. */
   router.post("/signup", async (req, res) => {
@@ -77,18 +83,16 @@ module.exports = function authRoutes({ db, secureCookies }) {
     const email = v.email(body.email);
     const password = typeof body.password === "string" ? body.password : "";
     const key = `${req.ip}|${email}`;
-    limiter.check(key);
+    loginLimiter.check(key);
 
     const user = db.prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email);
     const valid = user ? await auth.verifyPassword(password, user.password_hash) : false;
     if (!valid) throw new HttpError(401, "That email and password don't match.");
 
-    const membership = db
-      .prepare("SELECT restaurant_id FROM memberships WHERE user_id = ? ORDER BY created_at LIMIT 1")
-      .get(user.id);
-    if (!membership) throw new HttpError(403, "This account isn't linked to a restaurant.");
+    const membership = firstRestaurant(user.id);
+    if (!membership) throw new HttpError(403, "This account isn't linked to a restaurant anymore. Ask your manager for a new invite.");
 
-    limiter.clear(key);
+    loginLimiter.clear(key);
     auth.createSession(db, res, { userId: user.id, restaurantId: membership.restaurant_id, secure: secureCookies });
     res.json({ ok: true });
   });
@@ -98,10 +102,79 @@ module.exports = function authRoutes({ db, secureCookies }) {
     res.json({ ok: true });
   });
 
-  /** The signed-in user, their restaurant and their role there. */
+  /** The signed-in user, their current restaurant, their role there, and every restaurant they belong to. */
   router.get("/me", auth.requireAuth, (req, res) => {
     const restaurant = db.prepare("SELECT * FROM restaurants WHERE id = ?").get(req.auth.restaurantId);
-    res.json({ user: req.auth.user, restaurant: toRestaurant(restaurant), role: req.auth.role });
+    const restaurants = db
+      .prepare(
+        `SELECT r.id, r.name, r.state, m.role FROM memberships m JOIN restaurants r ON r.id = m.restaurant_id
+         WHERE m.user_id = ? ORDER BY r.name`
+      )
+      .all(req.auth.userId);
+    res.json({ user: req.auth.user, restaurant: toRestaurant(restaurant), role: req.auth.role, restaurants });
+  });
+
+  /** Switches the session to another restaurant the user belongs to. */
+  router.post("/switch", auth.requireAuth, (req, res) => {
+    const restaurantId = v.text(req.body.restaurantId, "Restaurant", { max: 60, required: true });
+    const member = db.prepare("SELECT 1 FROM memberships WHERE user_id = ? AND restaurant_id = ?").get(req.auth.userId, restaurantId);
+    if (!member) throw new HttpError(403, "You don't have access to that restaurant.");
+    auth.endSession(db, req);
+    auth.createSession(db, res, { userId: req.auth.userId, restaurantId, secure: secureCookies });
+    res.json({ ok: true });
+  });
+
+  /* ---------- Password reset ---------- */
+
+  /** Always answers the same way so the form can't be used to find out who has an account. */
+  router.post("/forgot", async (req, res) => {
+    const email = v.email(v.object(req.body, "Request").email);
+    resetLimiter.check(`${req.ip}|${email}`);
+
+    const user = db.prepare("SELECT id, name, email FROM users WHERE email = ?").get(email);
+    if (user) {
+      const { token, hash } = auth.newToken();
+      const expires = new Date(Date.now() + RESET_MINUTES * 60 * 1000).toISOString();
+      db.prepare("INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)").run(hash, user.id, expires);
+      const link = `${appUrl}/reset.html?token=${token}`;
+      await mailer
+        .send({
+          to: user.email,
+          subject: "Reset your Line Check password",
+          text: [
+            `Hi ${user.name},`,
+            "",
+            "Someone asked to reset the password for your Line Check account. To choose a new password, open this link:",
+            "",
+            link,
+            "",
+            `The link works once and expires in ${RESET_MINUTES} minutes. If you didn't ask for this, ignore this email and your password stays the same.`,
+          ].join("\n"),
+        })
+        .catch((err) => console.error("Password reset email failed:", err.message));
+    }
+    res.json({ ok: true });
+  });
+
+  router.post("/reset", async (req, res) => {
+    const body = v.object(req.body, "Reset details");
+    const token = typeof body.token === "string" ? body.token : "";
+    const password = v.password(body.password);
+    const row = db
+      .prepare("SELECT user_id FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?")
+      .get(auth.hashToken(token), new Date().toISOString());
+    if (!row) throw new HttpError(400, "This reset link has expired or was already used. Ask for a new one.");
+
+    const passwordHash = await auth.hashPassword(password);
+    transaction(db, () => {
+      db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(passwordHash, row.user_id);
+      db.prepare("UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL").run(new Date().toISOString(), row.user_id);
+      db.prepare("DELETE FROM sessions WHERE user_id = ?").run(row.user_id); // sign out everywhere
+    });
+
+    const membership = firstRestaurant(row.user_id);
+    if (membership) auth.createSession(db, res, { userId: row.user_id, restaurantId: membership.restaurant_id, secure: secureCookies });
+    res.json({ ok: true, signedIn: Boolean(membership) });
   });
 
   return router;

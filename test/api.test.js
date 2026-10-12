@@ -7,70 +7,21 @@
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
-const { openDatabase } = require("../server/db");
-const { createApp } = require("../server/app");
+const { startServer, signupBody } = require("./helpers");
 
-let server;
+let app;
 let baseUrl;
 let db;
 let dataDir;
+const client = () => app.client();
 
 before(async () => {
-  dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "linecheck-test-"));
-  db = openDatabase(dataDir);
-  server = createApp({ db, dataDir }).listen(0, "127.0.0.1");
-  await new Promise((resolve) => server.once("listening", resolve));
-  baseUrl = `http://127.0.0.1:${server.address().port}`;
+  app = await startServer();
+  ({ baseUrl, db, dataDir } = app);
 });
 
-after(() => {
-  server.close();
-  db.close();
-  fs.rmSync(dataDir, { recursive: true, force: true });
-});
-
-/** A tiny client that keeps its own session cookie. */
-function client() {
-  let cookie = "";
-  async function call(method, url, body, headers = {}) {
-    const opts = { method, headers: { "X-Requested-With": "fetch", ...headers }, redirect: "manual" };
-    if (cookie) opts.headers.Cookie = cookie;
-    if (body !== undefined) {
-      if (Buffer.isBuffer(body)) opts.body = body;
-      else {
-        opts.headers["Content-Type"] = "application/json";
-        opts.body = JSON.stringify(body);
-      }
-    }
-    const res = await fetch(baseUrl + url, opts);
-    const setCookie = res.headers.get("set-cookie");
-    if (setCookie) cookie = setCookie.split(";")[0];
-    const text = await res.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-    return { status: res.status, data, headers: res.headers };
-  }
-  return {
-    get: (u) => call("GET", u),
-    post: (u, b, h) => call("POST", u, b, h),
-    put: (u, b) => call("PUT", u, b),
-    patch: (u, b) => call("PATCH", u, b),
-    del: (u) => call("DELETE", u),
-    raw: call,
-  };
-}
-
-const signupBody = (email, state = "TX") => ({
-  state,
-  user: { name: "Dana Owner", title: "Owner", email, password: "correct horse battery" },
-  restaurant: { name: "Test Kitchen", city: "Austin", county: "Travis", servesAlcohol: true },
-});
+after(() => app.stop());
 
 let owner;
 
