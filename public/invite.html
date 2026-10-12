@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Join your team · Line Check</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/line-check.css">
+  <script defer src="/assets/js/pages/forms.js"></script>
+  <script defer src="/assets/js/pages/invite.js"></script>
+</head>
+<body>
+<div class="wrap auth">
+  <header class="site-nav">
+    <a class="logo" href="/">Line Check</a>
+  </header>
+
+  <div id="loading" class="card auth-card"><p class="sub">Checking your invitation…</p></div>
+
+  <div id="invalid" class="card auth-card" hidden>
+    <h1>This invitation can't be used</h1>
+    <p id="invalid-reason"></p>
+    <p class="sub">Ask the person who invited you to send a new one.</p>
+  </div>
+
+  <form id="accept" class="card auth-card" novalidate hidden>
+    <div>
+      <span class="eyebrow" id="invite-role"></span>
+      <h1 id="invite-title"></h1>
+      <p class="sub" id="invite-intro"></p>
+    </div>
+    <div id="form-error" class="banner warn" role="alert" hidden></div>
+
+    <div class="form" id="new-account" hidden>
+      <label class="wide">Email <input id="invite-email-new" type="email" readonly></label>
+      <label class="wide">Full name <input name="name" type="text" maxlength="80" autocomplete="name"></label>
+      <label>Password <input name="password" type="password" minlength="10" maxlength="200" autocomplete="new-password"></label>
+      <label>Confirm password <input name="confirm" type="password" minlength="10" maxlength="200" autocomplete="new-password"></label>
+      <p class="wide sub">At least 10 characters.</p>
+    </div>
+
+    <div class="form" id="existing-account" hidden>
+      <label class="wide">Email <input id="invite-email-existing" type="email" readonly></label>
+      <label class="wide">Password <input name="existingPassword" type="password" autocomplete="current-password"></label>
+      <p class="wide sub">You already have a Line Check account. Enter its password to join. <a href="/forgot.html">Forgot it?</a></p>
+    </div>
+
+    <p id="signed-in" class="sub" hidden></p>
+
+    <div class="row"><span class="spacer"></span><button type="submit" class="btn primary" id="accept-button">Join the team</button></div>
+  </form>
+</div>
+</body>
+</html>
