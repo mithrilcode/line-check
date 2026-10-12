@@ -1,86 +1,131 @@
 # Line Check
 
-A compliance helper for small restaurants: a daily food safety log, a permit and renewal tracker, and a self-inspection walkthrough, each tuned to one state's food code.
+A compliance helper for small restaurants: daily food safety logs, permit and renewal deadlines, a self-inspection walkthrough and employee files, each tuned to the restaurant's state food code.
 
-| Page | Rules it follows |
-| --- | --- |
-| [`california.html`](california.html) | California Retail Food Code (CalCode) |
-| [`texas.html`](texas.html) | Texas Food Establishment Rules (25 TAC Chapter 228) |
+Supported states: **California** (California Retail Food Code) and **Texas** (Texas Food Establishment Rules, 25 TAC Chapter 228).
 
 ## Features
 
-- **Today's log:** temperature, cooking, sanitizer and handwash-water readings, checked against the state limit as you type. An out-of-range reading needs a corrective action before it can be saved. Includes a cooling log (135°F → 70°F in 2 hours, → 41°F in 6 hours) and opening/closing checklists.
+- **Profiles:** sign up with a three-step form (state → about you → your restaurant). The state picks which food code, limits, checklists and starter deadlines the dashboard uses.
+- **Today's log:** temperature, cooking, sanitizer and handwash-water readings, checked against the state limit as you type. Out-of-range readings need a corrective action before they save. Includes a cooling log (135°F → 70°F in 2 hours, → 41°F in 6 hours) and opening/closing checklists.
 - **Permits & renewals:** health permit, manager and food handler certificates, hood cleaning, fire suppression, backflow, grease, pest control, and state tax and alcohol filings. "Mark renewed" rolls each item to its next due date. Exports to a CSV that Google Calendar can import.
 - **Inspection prep:** a walkthrough modeled on how inspectors score, with the highest-risk items flagged.
-- **Employees** (Texas): one file per employee with certifications, onboarding paperwork, write-ups, training and illness records, and attached scans. Expiring cards feed the renewals tracker.
+- **Employee files** (owners and managers): certifications, onboarding paperwork, write-ups, training and illness records, with photo or PDF attachments. Expiring cards feed the renewals tracker.
 - **Quick reference:** temperatures, sanitizer strengths, illness exclusions, closure triggers and agency links.
 
-## Running it locally
+## Getting started
 
-There is no build step and no dependencies. Open `index.html` in a browser, or serve the folder:
+Requires **Node.js 22.13 or newer** (the database uses Node's built-in `node:sqlite`).
 
 ```sh
-python -m http.server 8000
-# then open http://localhost:8000
+npm install
+npm start
+# open http://localhost:3000
 ```
 
-Outside claude.ai the pages save to the browser's `localStorage` (namespaced per state), and file uploads and CSV exports are hidden.
+| Command | What it does |
+| --- | --- |
+| `npm start` | Runs the server |
+| `npm run dev` | Runs the server and restarts it when files change |
+| `npm test` | Runs the API test suite against a throwaway database |
+
+### Configuration
+
+Set these environment variables as needed:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3000` | Port to listen on |
+| `HOST` | `127.0.0.1` | Interface to listen on. Use `0.0.0.0` behind a reverse proxy or in a container. |
+| `DATA_DIR` | `./data` | Where the SQLite database (`linecheck.db`) and uploaded files (`uploads/`) live |
+| `NODE_ENV` | — | Set to `production` to mark the session cookie `Secure` (requires HTTPS) |
+
+`data/` is git-ignored. Back it up: it holds every record and upload.
 
 ## Project structure
 
 ```
-index.html                  Landing page: pick a state
-california.html             California page (markup only)
-texas.html                  Texas page (markup only, includes the Employees panel)
-assets/
-  css/
-    line-check.css          All styles: tokens (light + dark), layout, components
-  js/
-    states/
-      california.js         State config: limits, checklists, walkthrough, starter deadlines
-      texas.js              Same, plus the employee-file rules (cert types, onboarding)
-    lib/
-      utils.js              DOM, escaping, date math, localStorage, toasts
-      store.js              App state and persistence (artifact db or localStorage)
-    features/
-      daily-log.js          Readings, shift checks, cooling log, holding units
-      deadlines.js          Permits & renewals list and edit dialog
-      inspection.js         Self-inspection walkthrough and readiness score
-      employees.js          Employee files (loads only where the state config enables it)
-      exports.js            CSV exports
-    main.js                 Summary strip, tabs, action dispatch, startup
+server/
+  index.js              Entry point: opens the database, starts the HTTP server
+  app.js                Express app: security headers, sessions, API routes, static files, errors
+  db.js                 Opens SQLite and applies migrations
+  auth.js               Password hashing, sessions, role checks, CSRF guard, login rate limit
+  migrations/
+    001_initial.sql     Database schema
+  lib/
+    validate.js         Request validation helpers and HttpError
+    mappers.js          Database rows → API JSON
+  routes/
+    auth.js             Sign-up, log-in, log-out, current user
+    restaurant.js       Restaurant profile
+    daily-log.js        Holding units, readings, shift checks, cooling, log export
+    deadlines.js        Permits & renewals
+    inspection.js       Walkthrough ticks
+    files.js            Uploads and downloads
+    employees.js        Employee files and everything inside them
+public/
+  index.html            Landing page
+  signup.html           Profile creation
+  login.html            Log in
+  app.html              Dashboard (requires a session)
+  partials/             Per-state Quick reference panels
+  assets/css/           Stylesheet (light and dark themes)
+  assets/js/
+    boot.js             Dashboard loader: checks the session, loads the state config and app scripts
+    states/             Per-state rules: limits, checklists, starter deadlines, employee-file rules, page text
+    lib/                utils.js, api.js (fetch client), store.js (state and operations)
+    features/           daily-log, deadlines, inspection, employees, exports
+    main.js             Summary strip, tabs, account menu, action dispatch, polling
+    pages/              Landing, sign-up and log-in scripts
+test/
+  api.test.js           End-to-end API tests (node:test)
 ```
 
-### How the pieces fit
+## Database
 
-- Every script is a plain IIFE that attaches to one global, `window.LineCheck`, so the pages work straight from the file system with no bundler or module server. Load order matters and is set in each page's `<head>`: state config → `lib/` → `features/` → `main.js`.
-- **State config is data, not code.** Everything that differs between states (limits, wording, checklists, starter deadlines, certification rules) lives in `assets/js/states/<state>.js`. The features read `LineCheck.config` and never mention a state by name.
-- **Features register themselves.** Each feature pushes a `render()` (and optionally `start()`) onto `LineCheck.features` and adds its click handlers to `LineCheck.actions`. Buttons name their handler with `data-act="…"`, and `main.js` dispatches every click from one listener.
-- **One render path.** Any state change calls `LineCheck.render()`, which redraws the summary strip and every feature. Regions with forms keep what the user is typing (`utils.keepInputs`).
+SQLite, one file. Every business table carries a `restaurant_id`, and every query is scoped to the signed-in user's restaurant.
 
-### Adding a state
-
-1. Copy `assets/js/states/texas.js` to `assets/js/states/<state>.js`, give it a new `id` and `name`, and replace the rules with that state's food code.
-2. Copy `texas.html` to `<state>.html`, point its first `<script>` at the new config, and rewrite the Quick reference panel and footer.
-3. Leave out the `employees` block and the Employees panel/script if you don't need employee files.
-4. Add a card for it to `index.html`.
-
-## Running as a claude.ai artifact
-
-The pages were built to run as [claude.ai](https://claude.ai) artifacts, where they gain capabilities a static site doesn't have:
-
-| Capability | Used for |
+| Table | Holds |
 | --- | --- |
-| `db` | Shared records for the whole team, synced live |
-| `downloads` | CSV exports |
-| `assets` | Photo and PDF attachments in employee files |
-| `user` | Showing employee files only to managers |
+| `users` | Accounts (email, scrypt password hash, name, role title) |
+| `restaurants` | Restaurant profile and state (`CA` or `TX`) |
+| `memberships` | Which users belong to which restaurant, as `owner`, `manager` or `staff` |
+| `sessions` | Login sessions (only a SHA-256 hash of the cookie token is stored) |
+| `holding_units` | Coolers, freezers and hot wells that appear in the log |
+| `readings` | Temperature, cooking and sanitizer readings with pass/fail and corrective action |
+| `shift_checks` | Opening and closing checklist ticks per day |
+| `cooling_batches` | Cooling log with the 2-hour and 6-hour readings |
+| `deadlines` | Permits, certificates, services and filings with their repeat interval |
+| `inspection_ticks` | Walkthrough items confirmed, per restaurant |
+| `files` | Uploaded photos and PDFs (bytes stored on disk under `DATA_DIR/uploads`) |
+| `employees` | Employee profiles |
+| `employee_certifications` | Food handler, manager, alcohol-service and other certificates |
+| `employee_records` | Write-ups, training, illness and injury reports, reviews, notes |
+| `employee_onboarding` | Onboarding checklist items completed |
+| `employee_documents` | Labeled document uploads |
 
-The Texas artifact declares this access rule so employee files stay manager-only:
+Schema changes go in a new numbered file in `server/migrations/` (for example `002_add_something.sql`). The server applies new migrations at startup and tracks the version in SQLite's `user_version`.
 
-```json
-{ "db": { "rules": [{ "path": "employees", "read": "admin", "write": "admin" }] } }
-```
+## Security
+
+- Passwords are hashed with scrypt. Sessions use an `HttpOnly`, `SameSite=Lax` cookie that lasts 30 days.
+- State-changing API calls must send `X-Requested-With: fetch`, which blocks cross-site form posts.
+- Log-in attempts are rate-limited per IP and email.
+- Employee files and uploads are limited to owners and managers. Uploads accept photos and PDFs only, up to 20 MB, and are served with a sandboxing Content Security Policy.
+- Pages are served with a strict Content Security Policy (no inline scripts or styles).
+
+## Adding a state
+
+1. Add `public/assets/js/states/<state>.js` with that state's rules (copy `texas.js` as a starting point).
+2. Add `public/partials/reference-<id>.html` for the Quick reference panel.
+3. Add the state code to the `CHECK` on `restaurants.state` in a new migration, to `v.oneOf(... ["CA", "TX"])` in `server/routes/auth.js`, and to `STATE_CONFIGS` in `public/assets/js/boot.js`.
+4. Add it as a choice on `public/signup.html`.
+
+## Not built yet
+
+- Inviting managers and staff to an existing restaurant (the `memberships` table supports it; there's no invite screen yet).
+- Password reset by email.
+- Reminder emails or calendar sync for upcoming deadlines.
 
 ## Disclaimer
 
